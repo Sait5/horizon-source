@@ -39,6 +39,16 @@ jobs:
           codesign --verify --verbose=2 "$APP" || true
           ls -lh dist/*.dmg
 
+      - name: Пробный запуск на Mac
+        run: node scripts/ci-smoke.js "$(ls -d dist/mac-universal/*.app | head -1)/Contents/MacOS/Horizon"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: horizon-mac-smoke
+          path: dist/smoke-*.png
+          retention-days: 14
+
       - uses: actions/upload-artifact@v4
         with:
           name: horizon-mac
