@@ -1526,19 +1526,30 @@ if (!app.requestSingleInstanceLock()) {
   });
 }
 
+// Журнал запуска для проверок на машинах сборки (HORIZON_TRACE=1): видно, на каком шаге старт.
+const trace = (step) => process.env.HORIZON_TRACE === '1' && process.stderr.write(`[запуск] ${step}
+`);
+process.on('unhandledRejection', (error) => console.error('[ошибка]', error && error.stack ? error.stack : error));
+
 app.whenReady().then(async () => {
+  trace('готов');
   profile = new Profile(app, safeStorage);
   profile.load();
+  trace('профиль');
   profile.on('change', sendProfile);
   // На Mac без меню «Правка» не работают ⌘C, ⌘V и ⌘A в полях ввода, а без меню приложения — ⌘Q.
   Menu.setApplicationMenu(process.platform === 'darwin' ? Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }]) : null);
   setupSession();
+  trace('сеанс');
   setupVpn();
   setupVault();
   setupAccount();
+  trace('аккаунт');
   updateKidsFilter();
   await vpn.init();
+  trace('vpn');
   createWindow();
+  trace('окно');
   updater.on('change', sendState);
   updater.start({ app });
 });

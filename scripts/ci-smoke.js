@@ -43,7 +43,7 @@ async function shot(target, name) {
 
 (async () => {
   const child = spawn(exe, [`--remote-debugging-port=${PORT}`, '--enable-logging=stderr'], {
-    env: { ...process.env, HORIZON_PROFILE_DIR: profile, HORIZON_NO_INTRO: '1', ELECTRON_ENABLE_LOGGING: '1' },
+    env: { ...process.env, HORIZON_PROFILE_DIR: profile, HORIZON_NO_INTRO: '1', HORIZON_TRACE: '1', ELECTRON_ENABLE_LOGGING: '1' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   // Всё, что программа пишет при запуске, — в журнал проверки (последние строки покажем при ошибке)
