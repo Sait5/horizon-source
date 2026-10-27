@@ -11,7 +11,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'horizon-smoke-'));
 
 async function targets() {
-  return (await fetch(`http://127.0.0.1:${PORT}/json`)).json();
+  return (await fetch(`http://127.0.0.1:${PORT}/json`, { signal: AbortSignal.timeout(5000) })).json();
 }
 
 async function call(target, method, params = {}) {
@@ -19,8 +19,11 @@ async function call(target, method, params = {}) {
   await new Promise((resolve, reject) => {
     ws.onopen = resolve;
     ws.onerror = reject;
+    setTimeout(() => reject(new Error('отладочный порт не ответил')), 10000);
   });
-  const result = await new Promise((resolve) => {
+  // Ни один шаг проверки не ждёт дольше 20 секунд
+  const result = await new Promise((resolve, reject) => {
+    setTimeout(() => reject(new Error(`${method}: нет ответа 20 с`)), 20000);
     ws.onmessage = (m) => {
       const d = JSON.parse(m.data);
       if (d.id === 1) resolve(d.result || d.error);
@@ -50,6 +53,7 @@ async function shot(target, name) {
   };
   try {
     let list = [];
+    console.log('Жду, пока откроется программа…');
     for (let i = 0; i < 60; i++) {
       try {
         list = await targets();

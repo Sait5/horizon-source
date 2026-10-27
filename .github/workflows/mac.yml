@@ -39,7 +39,17 @@ jobs:
           codesign --verify --verbose=2 "$APP" || true
           ls -lh dist/*.dmg
 
+      # На машине сборки «Связка ключей» заперта, и macOS ждала бы, пока кто-то введёт пароль.
+      # Для проверки — отдельная открытая связка (у людей macOS один раз спросит «Разрешить»).
+      - name: Связка ключей для пробного запуска
+        run: |
+          security create-keychain -p ci horizon-ci.keychain
+          security default-keychain -s horizon-ci.keychain
+          security unlock-keychain -p ci horizon-ci.keychain
+          security set-keychain-settings -t 3600 -u horizon-ci.keychain
+
       - name: Пробный запуск на Mac
+        timeout-minutes: 5
         run: node scripts/ci-smoke.js "$(ls -d dist/mac-universal/*.app | head -1)/Contents/MacOS/Horizon"
 
       - uses: actions/upload-artifact@v4
