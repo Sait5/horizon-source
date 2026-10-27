@@ -62,7 +62,7 @@ async function shot(target, name) {
   try {
     let list = [];
     console.log('Жду, пока откроется программа…');
-    for (let i = 0; i < 45 && !exited; i++) {
+    for (let i = 0; i < 90 && !exited; i++) {
       try {
         list = await targets();
         if (list.some((t) => t.url.startsWith('horizon://start'))) break;

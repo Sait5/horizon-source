@@ -1291,11 +1291,15 @@ function createWindow() {
     if (handleShortcut(input)) event.preventDefault();
   });
   win.on('resize', layout);
-  win.once('ready-to-show', () => win.show());
+  win.once('ready-to-show', () => {
+    trace('окно показано');
+    win.show();
+  });
   // Вкладка, созданная до показа окна, оставалась для Chromium «скрытой» — и видео на главной
   // (волны) вставало на паузу. При показе, разворачивании и фокусе окна видимость обновляется.
   for (const event of ['show', 'restore', 'focus']) win.on(event, refreshTabVisibility);
   win.webContents.once('did-finish-load', () => {
+    trace('интерфейс загружен');
     sendProfile();
     win.webContents.send('account', account.publicState());
     const wantIntro = !profile.settings.introSeen || profile.appearance.introEveryLaunch;
@@ -1527,7 +1531,8 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 // Журнал запуска для проверок на машинах сборки (HORIZON_TRACE=1): видно, на каком шаге старт.
-const trace = (step) => process.env.HORIZON_TRACE === '1' && process.stderr.write(`[запуск] ${step}
+const traceStart = Date.now();
+const trace = (step) => process.env.HORIZON_TRACE === '1' && process.stderr.write(`[запуск] ${step} +${Date.now() - traceStart} мс
 `);
 process.on('unhandledRejection', (error) => console.error('[ошибка]', error && error.stack ? error.stack : error));
 
