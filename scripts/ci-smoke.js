@@ -42,10 +42,18 @@ async function shot(target, name) {
 }
 
 (async () => {
-  const child = spawn(exe, [`--remote-debugging-port=${PORT}`], {
-    env: { ...process.env, HORIZON_PROFILE_DIR: profile, HORIZON_NO_INTRO: '1' },
-    stdio: 'ignore',
+  const child = spawn(exe, [`--remote-debugging-port=${PORT}`, '--enable-logging=stderr'], {
+    env: { ...process.env, HORIZON_PROFILE_DIR: profile, HORIZON_NO_INTRO: '1', ELECTRON_ENABLE_LOGGING: '1' },
+    stdio: ['ignore', 'pipe', 'pipe'],
   });
+  // Всё, что программа пишет при запуске, — в журнал проверки (последние строки покажем при ошибке)
+  const output = [];
+  const keep = (chunk) => output.push(...String(chunk).split(/\r?\n/).filter(Boolean));
+  child.stdout.on('data', keep);
+  child.stderr.on('data', keep);
+  let exited = null;
+  child.on('exit', (code, signal) => (exited = `код ${code} ${signal || ''}`));
+
   let failures = 0;
   const check = (ok, label, extra = '') => {
     if (!ok) failures++;
@@ -54,7 +62,7 @@ async function shot(target, name) {
   try {
     let list = [];
     console.log('Жду, пока откроется программа…');
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 45 && !exited; i++) {
       try {
         list = await targets();
         if (list.some((t) => t.url.startsWith('horizon://start'))) break;
@@ -64,7 +72,8 @@ async function shot(target, name) {
       await wait(1000);
     }
     const start = list.find((t) => t.url.startsWith('horizon://start'));
-    check(Boolean(start), 'программа открылась, главная загрузилась');
+    check(Boolean(start), 'программа открылась, главная загрузилась', exited ? `программа закрылась: ${exited}` : '');
+    if (!start) console.log(['Последние строки программы:', ...output.slice(-60)].join('\n'));
     if (start) {
       await wait(4000);
       const page = await evaluate(start, `({ title: document.title, search: !!document.getElementById('query'), tiles: document.querySelectorAll('.tile').length, video: (() => { const v = document.getElementById('liveA'); return v ? [v.readyState, v.error && v.error.message] : null; })() })`);
@@ -84,6 +93,7 @@ async function shot(target, name) {
   } catch (error) {
     failures++;
     console.log('ОШИБКА', error.message);
+    console.log(['Последние строки программы:', ...output.slice(-40)].join('\n'));
   } finally {
     child.kill();
   }

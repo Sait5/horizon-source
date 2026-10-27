@@ -3,6 +3,11 @@ name: Сборка для Mac
 
 on:
   workflow_dispatch:
+    inputs:
+      quick:
+        description: 'Быстрая проверка: только Apple M, без .dmg'
+        type: boolean
+        default: false
   push:
     tags: ['v*']
 
@@ -26,12 +31,20 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Быстрая сборка (только Apple M)
+        if: inputs.quick
+        run: npx electron-builder --mac dir --arm64 --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
       - name: Установщик .dmg
+        if: ${{ !inputs.quick }}
         run: npx electron-builder --mac dmg --universal --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
       - name: Проверка приложения
+        if: ${{ !inputs.quick }}
         run: |
           APP=$(ls -d dist/mac-universal/*.app | head -1)
           lipo -info "$APP/Contents/MacOS/Horizon"
@@ -50,7 +63,7 @@ jobs:
 
       - name: Пробный запуск на Mac
         timeout-minutes: 5
-        run: node scripts/ci-smoke.js "$(ls -d dist/mac-universal/*.app | head -1)/Contents/MacOS/Horizon"
+        run: node scripts/ci-smoke.js "$(ls -d dist/mac*/*.app | head -1)/Contents/MacOS/Horizon"
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -60,6 +73,7 @@ jobs:
           retention-days: 14
 
       - uses: actions/upload-artifact@v4
+        if: ${{ !inputs.quick }}
         with:
           name: horizon-mac
           path: dist/*.dmg
