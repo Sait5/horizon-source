@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; img-src 'self' https: data: horizon:; style-src 'self'; script-src 'self'">
+  <title>Horizon</title>
+  <link rel="stylesheet" href="ui.css">
+</head>
+<body>
+  <header class="tabstrip">
+    <div class="brand" title="Horizon">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5 15a7 7 0 0 1 14 0" />
+        <path d="M2 15h20" />
+        <path d="M6 19h12" />
+      </svg>
+    </div>
+    <div class="tabs" id="tabs"></div>
+    <button class="newtab" id="newTab" title="Новая вкладка (Ctrl+T)" aria-label="Новая вкладка">
+      <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+    </button>
+  </header>
+
+  <nav class="toolbar">
+    <button class="tool" id="back" title="Назад (Alt+←)" aria-label="Назад">
+      <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" /></svg>
+    </button>
+    <button class="tool" id="forward" title="Вперёд (Alt+→)" aria-label="Вперёд">
+      <svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" /></svg>
+    </button>
+    <button class="tool" id="reload" title="Обновить (F5)" aria-label="Обновить">
+      <svg class="icon-reload" viewBox="0 0 24 24"><path d="M19 12a7 7 0 1 1-2.05-4.95" /><path d="M19 4v4h-4" /></svg>
+      <svg class="icon-stop" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg>
+    </button>
+    <button class="tool" id="home" title="Стартовая страница" aria-label="Стартовая страница">
+      <svg viewBox="0 0 24 24"><path d="M4 11l8-6 8 6" /><path d="M6 10v9h12v-9" /></svg>
+    </button>
+
+    <form class="address" id="addressForm" autocomplete="off">
+      <svg class="address-icon" id="addressIcon" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="11" cy="11" r="6" /><path d="M20 20l-4.5-4.5" />
+      </svg>
+      <span class="insecure" id="insecure" title="Сайт открыт без шифрования (http): не вводите на нём пароли и данные карт" hidden>Не защищено</span>
+      <input id="address" type="text" spellcheck="false" placeholder="Поиск или адрес сайта">
+      <button type="button" class="address-btn" id="addressKey" title="Пароли для этого сайта" aria-label="Пароли для этого сайта" hidden>
+        <svg viewBox="0 0 24 24"><circle cx="8" cy="15" r="4" /><path d="M11 12l9-9M17 6l3 3M15 8l2 2" /></svg>
+      </button>
+      <button type="button" class="address-btn" id="starBtn" title="Сохранить вкладку" aria-label="Сохранить вкладку" hidden>
+        <svg viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" /></svg>
+      </button>
+    </form>
+
+    <button class="tool dl-btn" id="downloadsBtn" title="Загрузки" aria-label="Загрузки" hidden>
+      <svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14" /></svg>
+      <span class="dl-ring" id="dlRing"></span>
+    </button>
+    <button class="update-btn" id="updateBtn" title="Установить обновление и перезапустить" hidden>
+      <svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14" /></svg>
+      <span id="updateLabel">Обновить</span>
+    </button>
+    <button class="vpn-btn" id="vpnBtn" title="Horizon VPN" aria-label="Horizon VPN">
+      <svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z" /></svg>
+      <span id="vpnLabel">VPN</span>
+      <span class="vpn-dot"></span>
+    </button>
+    <button class="tool" id="vaultBtn" title="Сейф паролей" aria-label="Сейф паролей">
+      <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /><path d="M12 15v2" /></svg>
+    </button>
+    <button class="account-btn" id="accountBtn" title="Аккаунт Horizon" aria-label="Аккаунт Horizon">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="3.5" /><path d="M5 20a7 7 0 0 1 14 0" /></svg>
+    </button>
+  </nav>
+
+  <div class="side" id="side">
+    <div class="rail" id="rail">
+      <button class="rail-btn" data-panel="saved" title="Сохранённые вкладки" aria-label="Сохранённые вкладки">
+        <svg viewBox="0 0 24 24"><path d="M6 4h12v17l-6-4-6 4z" /></svg>
+      </button>
+      <button class="rail-btn" data-panel="groups" title="Группы вкладок" aria-label="Группы вкладок">
+        <svg viewBox="0 0 24 24"><rect x="3" y="7" width="14" height="13" rx="2" /><path d="M7 4h12a2 2 0 0 1 2 2v11" /></svg>
+      </button>
+      <button class="rail-btn" data-panel="history" title="История (Ctrl+H)" aria-label="История">
+        <svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.7" /><path d="M4 4v4h4" /><path d="M12 8v4l3 2" /></svg>
+      </button>
+      <button class="rail-btn" data-panel="appearance" title="Оформление" aria-label="Оформление">
+        <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.6-.8 1.6-1.6 0-.9-.6-1.4-.6-2.2 0-.9.7-1.6 1.6-1.6H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z" /><circle cx="7.5" cy="11" r="1.2" /><circle cx="10.5" cy="7.2" r="1.2" /><circle cx="15" cy="7.6" r="1.2" /></svg>
+      </button>
+      <div class="rail-spacer"></div>
+      <button class="rail-btn" id="railVpn" title="Horizon VPN" aria-label="Horizon VPN">
+        <svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z" /></svg>
+      </button>
+      <button class="rail-btn" id="railVault" title="Сейф паролей" aria-label="Сейф паролей">
+        <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>
+      </button>
+    </div>
+    <aside class="sidepanel" id="sidepanel" hidden></aside>
+  </div>
+
+  <script src="theme.js"></script>
+  <script src="ui.js"></script>
+  <script src="sidebar.js"></script>
+</body>
+</html>

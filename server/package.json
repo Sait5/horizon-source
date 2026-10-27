@@ -1,0 +1,17 @@
+{
+  "name": "horizon-accounts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Сервер аккаунтов браузера Horizon: регистрация по почте, профиль, подтверждение номера через Telegram",
+  "scripts": {
+    "dev": "node dev.js",
+    "webhook": "node scripts/set-webhook.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.2.0",
+    "nodemailer": "^10.2.1"
+  }
+}

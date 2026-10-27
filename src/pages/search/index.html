@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; img-src 'self' https: data: blob:; style-src 'self'; script-src 'self'; connect-src 'self'; frame-src https://www.openstreetmap.org">
+  <title>Поиск</title>
+  <link rel="stylesheet" href="search.css">
+</head>
+<body>
+  <header class="top">
+    <div class="top-row">
+      <a class="mark" href="horizon://start/" title="Главная">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 15a7 7 0 0 1 14 0" /><path d="M2 15h20" /><path d="M6 19h12" /></svg>
+      </a>
+      <form class="search" id="form" autocomplete="off">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6" /><path d="M20 20l-4.5-4.5" /></svg>
+        <input id="query" type="text" spellcheck="false" placeholder="Найти сайт или ввести адрес">
+        <button class="go" type="submit" title="Найти">Найти</button>
+      </form>
+    </div>
+    <nav class="verticals" id="verticals" aria-label="Что искать"></nav>
+  </header>
+
+  <main class="page" id="page">
+    <p class="loading">Ищу…</p>
+  </main>
+
+  <script src="viewer.js"></script>
+  <script src="search.js"></script>
+</body>
+</html>

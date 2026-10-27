@@ -1,0 +1,120 @@
+{
+  "name": "horizon",
+  "productName": "Horizon",
+  "version": "0.2.1",
+  "description": "Браузер Horizon для Windows",
+  "author": "Horizon",
+  "main": "src/main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "core": "node scripts/fetch-core.js",
+    "update-key": "node scripts/gen-update-key.js",
+    "dist": "electron-builder --win nsis",
+    "release": "node scripts/release.js",
+    "dist:mac": "electron-builder --mac dmg --universal --publish never"
+  },
+  "horizon": {
+    "updateRepo": "Sait5/horizon-browser",
+    "accountApi": "https://horizon-accounts.vercel.app"
+  },
+  "build": {
+    "appId": "app.horizon.browser",
+    "productName": "Horizon",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "src/assets/intro.mp4",
+      "src/assets/intro-sound.wav",
+      "src/assets/waves-sunrise.mp4",
+      "src/assets/wallpaper-sunrise.jpg"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "src/assets/icon.ico",
+      "extraResources": [
+        {
+          "from": "core",
+          "to": "core",
+          "filter": [
+            "sing-box.exe",
+            "LICENSE-sing-box.txt"
+          ]
+        }
+      ]
+    },
+    "electronFuses": {
+      "runAsNode": false,
+      "enableCookieEncryption": true,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "enableEmbeddedAsarIntegrityValidation": true,
+      "onlyLoadAppFromAsar": true
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "allowElevation": false,
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false,
+      "include": "build/installer.nsh",
+      "language": "1049",
+      "installerLanguages": [
+        "ru_RU"
+      ],
+      "multiLanguageInstaller": false,
+      "artifactName": "Horizon-Setup-${version}.exe",
+      "shortcutName": "Horizon",
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "installerIcon": "src/assets/icon.ico",
+      "uninstallerIcon": "src/assets/icon.ico"
+    },
+    "compression": "maximum",
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
+      "icon": "src/assets/icon-mac.png",
+      "category": "public.app-category.productivity",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "artifactName": "Horizon-${version}-mac.${ext}",
+      "extraResources": [
+        {
+          "from": "core",
+          "to": "core",
+          "filter": [
+            "sing-box",
+            "LICENSE-sing-box.txt"
+          ]
+        }
+      ],
+      "x64ArchFiles": "**/core/sing-box"
+    },
+    "dmg": {
+      "title": "Horizon ${version}",
+      "writeUpdateInfo": false
+    }
+  },
+  "devDependencies": {
+    "electron": "^45.0.0",
+    "electron-builder": "^26.18.0"
+  },
+  "dependencies": {
+    "jsqr": "^1.4.0",
+    "qrcode": "^1.5.4"
+  }
+}

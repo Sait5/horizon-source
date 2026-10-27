@@ -1,0 +1,62 @@
+# Автовыпуск Horizon: раз в неделю подтягивает свежий Electron (в нём исправления уязвимостей Chromium),
+# собирает установщик, подписывает его ключом обновлений и публикует релиз. Браузеры сами его скачают.
+name: Выпуск Horizon
+
+on:
+  # Только вручную: выпуски публикуются на открытой странице Sait5/horizon-browser
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Зависимости
+        run: npm ci
+
+      - name: Свежий Electron в пределах текущей основной версии
+        run: npm update electron
+
+      - name: Нужен ли выпуск
+        id: prepare
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/ci-prepare.js
+
+      - name: Ядро VPN
+        if: steps.prepare.outputs.release == 'true'
+        run: npm run core
+
+      - name: Сборка установщика
+        if: steps.prepare.outputs.release == 'true'
+        run: npx electron-builder --win nsis --publish never
+
+      - name: Подпись обновления
+        if: steps.prepare.outputs.release == 'true'
+        env:
+          HORIZON_UPDATE_KEY: ${{ secrets.HORIZON_UPDATE_KEY }}
+        run: node scripts/release.js
+
+      - name: Публикация релиза
+        if: steps.prepare.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $v = "${{ steps.prepare.outputs.version }}"
+          gh release create "v$v" "dist/Horizon-Setup-$v.exe" "dist/latest.json" `
+            --title "Horizon $v" `
+            --notes "Движок: Electron ${{ steps.prepare.outputs.electron }}. Установленные браузеры обновятся сами."

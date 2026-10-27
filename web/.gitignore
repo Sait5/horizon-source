@@ -1,0 +1,6 @@
+public/
+api/_lib/
+.vercel
+
+.vercel
+.env*

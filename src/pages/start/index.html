@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; img-src 'self' https: data:; style-src 'self'; script-src 'self'; connect-src 'self'; media-src 'self'">
+  <title>Новая вкладка</title>
+  <link rel="stylesheet" href="start.css">
+</head>
+<body>
+  <div class="bg" id="bg"></div>
+  <video class="live" id="liveA" muted playsinline preload="auto"></video>
+  <video class="live" id="liveB" muted playsinline preload="auto"></video>
+  <div class="dim" id="dim"></div>
+  <div class="glow" aria-hidden="true"></div>
+  <div class="shimmer" aria-hidden="true"></div>
+
+  <button class="customize" id="customize" title="Настроить оформление">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.6-.8 1.6-1.6 0-.9-.6-1.4-.6-2.2 0-.9.7-1.6 1.6-1.6H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z" /><circle cx="7.5" cy="11" r="1.2" /><circle cx="10.5" cy="7.2" r="1.2" /><circle cx="15" cy="7.6" r="1.2" /></svg>
+    Настроить
+  </button>
+
+  <main class="start">
+    <div class="clock" id="clock">
+      <div class="greeting" id="greeting"></div>
+      <div class="time" id="time"></div>
+      <div class="date" id="date"></div>
+    </div>
+
+    <div class="search-wrap">
+      <form class="search" id="search" autocomplete="off">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6" /><path d="M20 20l-4.5-4.5" /></svg>
+        <input id="query" type="text" placeholder="Найти сайт или ввести адрес" spellcheck="false" autofocus>
+      </form>
+      <div class="drop" id="drop" role="listbox" hidden></div>
+    </div>
+
+    <div class="spacer" aria-hidden="true"></div>
+
+    <section class="tiles" id="tiles" aria-label="Сохранённые вкладки"></section>
+  </main>
+
+  <div class="dialog" id="dialog" hidden>
+    <div class="card picker" role="dialog" aria-label="Добавить сайты">
+      <h2>Добавить на главную</h2>
+      <div class="pick-tabs" role="tablist">
+        <button type="button" class="pick-tab active" data-mode="sites" role="tab">Популярные сайты</button>
+        <button type="button" class="pick-tab" data-mode="link" role="tab">Своя ссылка</button>
+      </div>
+      <div class="pick-pane" id="paneSites">
+        <p class="picker-hint">Отметьте сразу несколько — они появятся плитками на главной.</p>
+        <input id="pickSearch" class="input" type="text" placeholder="Найти сайт или вставить ссылку" spellcheck="false">
+        <div class="picker-grid" id="pickGrid"></div>
+      </div>
+      <form class="pick-pane picker-own" id="addForm" autocomplete="off" hidden>
+        <p class="picker-hint">Любая страница: канал на YouTube, чат, документ, магазин.</p>
+        <label class="field-label" for="addUrl">Ссылка</label>
+        <input id="addUrl" class="input" type="text" placeholder="https://www.youtube.com/@канал" spellcheck="false">
+        <label class="field-label" for="addTitle">Название (необязательно)</label>
+        <input id="addTitle" class="input" type="text" placeholder="Например, «Мой канал»" spellcheck="false" maxlength="60">
+        <div class="link-preview" id="linkPreview" hidden>
+          <span class="tile-icon" id="linkIcon"></span>
+          <div class="link-text"><div class="link-name" id="linkName"></div><div class="link-host" id="linkHost"></div></div>
+        </div>
+      </form>
+      <p class="error" id="addError"></p>
+      <div class="actions">
+        <button type="button" class="btn" id="addCancel">Отмена</button>
+        <button type="button" class="btn primary" id="addSubmit" disabled>Добавить</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="start.js"></script>
+</body>
+</html>

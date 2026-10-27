@@ -1,0 +1,409 @@
+
+
+<!---->
+
+
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+    <meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1.0" />
+    
+      <title>Почта Mail.ru</title>
+    
+
+    
+      <link nonce="<!--# echo var='csp_nonce' -->" rel="icon" sizes="16x16" href="https://imgs2.imgsmail.ru/static/octavius/favicons/rebranding-2024/16-fav_mail.png" />
+      <link nonce="<!--# echo var='csp_nonce' -->" rel="icon" sizes="24x24" href="https://imgs2.imgsmail.ru/static/octavius/favicons/rebranding-2024/24-fav_mail.png" />
+      <link nonce="<!--# echo var='csp_nonce' -->" rel="icon" sizes="32x32" href="https://imgs2.imgsmail.ru/static/octavius/favicons/rebranding-2024/32-fav_mail.png" />
+      <link nonce="<!--# echo var='csp_nonce' -->" rel="icon" sizes="48x48" href="https://imgs2.imgsmail.ru/static/octavius/favicons/rebranding-2024/48-fav_mail.png" />
+      <link nonce="<!--# echo var='csp_nonce' -->" rel="icon" sizes="192x192" href="https://imgs2.imgsmail.ru/static/octavius/favicons/rebranding-2024/icon-192-round.png" />
+      <link nonce="<!--# echo var='csp_nonce' -->" rel="apple-touch-icon" sizes="192x192" href="https://imgs2.imgsmail.ru/static/octavius/favicons/rebranding-2024/icon-192.png" />
+      <meta name="msapplication-TileImage" content="https://imgs2.imgsmail.ru/static/octavius/favicons/rebranding-2024/icon-512.png" />
+    
+
+		<style>
+			
+				html, body {
+	background: white;
+	padding: 0;
+	margin: 0;
+	font-family: Arial, Tahoma, Verdana, sans-serif;
+	font-size: 13px;
+}
+
+body {
+    height: 100%;
+    min-height: 100vh;
+}
+
+body, textarea {
+    font-family: 'San Francisco', Helvetica, Arial, Tahoma, Verdana, sans-serif;
+}
+
+body.vk-mail {
+    background: #EDEEF0;
+}
+
+.vk-mail .error-message_sketch {
+    background-color: #EDEEF0;
+}
+
+.vk-mail .w-pm-menu, .vk-mail .pm-menu {
+    background: #ffffff;
+}
+
+.vk-mail .btn_main {
+    color: #ffffff;
+    background: #4986cc;
+}
+
+.vk-mail .btn_main:hover {
+    background: #4681c6;
+}
+
+.vk-mail .error-message__footer {
+    background: #ffffff;
+}
+
+.vk-mail a {
+    color: #3f8ae0;
+}
+
+.vk-mail .portal-menu {
+    min-width: 500px;
+}
+
+.vk-mail.error-page_404 .ph-whiteline {
+    min-width: 1000px;
+}
+
+@media all and (max-width: 920px) {
+    .vk-mail .error-message {
+        width: 500px;
+    }
+
+    .vk-mail .error-message__content {
+        margin: 0 auto;
+        display: block;
+    }
+}
+
+a {
+	color: #005BD1;
+    text-decoration: none;
+}
+
+h1 {
+	margin-top: 0px;
+	margin-right: 0px;
+	margin-bottom: 0px;
+	margin-left: 0px;
+	padding-top: 0px;
+	padding-right: 0px;
+	padding-bottom: 5px;
+	padding-left: 0px;
+	color: rgb(68, 68, 68);
+	font-size: 17px;
+
+}
+
+.error-footer {
+	font-size: 13px;
+	text-align: center;
+	line-height: 20px;
+	color: #999999;
+}
+
+.error-message {
+	width: 920px;
+	position: relative;
+	margin: 94px auto 0;
+    padding-bottom: 28px;
+	text-align: left;
+}
+
+	.error-message__body {
+		padding-top: 25px;
+		padding-right: 28px;
+		padding-bottom: 14px;
+		padding-left: 28px;
+	}
+
+	.error-message__img, .error-message__content {
+		margin-top: 0px;
+		margin-right: 28px;
+		margin-bottom: 56px;
+		margin-left: 28px;
+		display: inline-block;
+		vertical-align: middle;
+	}
+
+	.error-message__content {
+		max-width: 400px;
+		margin-bottom: 0px;
+        margin-right: 0px;
+		text-align: left;
+		border: 1px solid rgb(217, 217, 217);
+		background-color: rgb(255, 255, 255);
+		border-radius: 4px;
+		box-shadow: rgba(0, 0, 0, 0.09) 0px 0px 8px;
+	}
+
+	.error-message__footer {
+		padding: 16px 28px;
+	    background-color: rgb(228, 235, 240);
+	    border-top: 1px solid rgb(218, 228, 239);
+	}
+
+	.error-message__heading {
+		margin-bottom: 10px;
+		padding-bottom: 0px;
+		font-size: 22px;
+		font-weight: normal;
+		line-height: 24px;
+	}
+
+
+.error-message_sketch {
+    width: 1000px;
+    position: relative;
+    padding: 94px 0;
+    margin: 0 auto;
+    text-align: left;
+}
+
+	.error-message__message {
+		margin-top: 0px;
+		margin-right: 0px;
+		margin-bottom: 16px;
+		margin-left: 0px;
+		font-size: 14px;
+		line-height: 20px;
+	}
+
+.page-error {
+	padding-bottom: 64px;
+	background-position: 100% 100%;
+	background-repeat: no-repeat;
+}
+
+	.page-error__bg {
+		min-height: 425px;
+		padding-bottom: 35px;
+		background-position: 100% 30px;
+		background-repeat: no-repeat;
+	}
+
+	.page-error__body {
+	    padding: 25px 46px 0;
+	}
+
+	.page-error__content {
+		display: inline-block;
+		vertical-align: middle;
+		max-width: 520px;
+		margin-bottom: 0;
+		text-align: left;
+	}
+
+	.page-error__heading {
+		font-size: 60px;
+		font-weight: bold;
+		color: #333333;
+		text-align: left;
+		line-height: 60px;
+	    display: block;
+	    margin: 0;
+	    padding: 0 0 5px;
+	}
+
+	.page-error__message {
+		margin: 32px 0;
+		font-size: 17px;
+		color: #333333;
+		line-height: 24px;
+	}
+
+
+
+.btn {
+	position: relative;
+	display: inline-block;
+	vertical-align: middle;
+	line-height: 30px;
+	margin: 0 8px 0 0;
+	border: 1px solid rgba(0,0,0,0.12);
+	padding: 0px 15px;
+	cursor: pointer;
+	font-family: inherit;
+	font-size: 15px;
+	-webkit-box-sizing: border-box;
+	box-sizing: border-box;
+	-webkit-border-radius: 2px;
+	border-radius: 2px;
+	-webkit-box-shadow: 0 2px 0 0 rgba(0, 0, 0, 0.04);
+	box-shadow: 0 2px 0 0 rgba(0, 0, 0, 0.04);
+	-webkit-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
+	outline: none;
+}
+	.btn_main {
+		color: #ffffff;
+		text-shadow: none;
+		background-color: #005ff9;
+	}
+
+	.btn_main:hover {
+		background-color: #005BEF;
+	}
+
+	.btn__text {
+		font-family: Helvetica, Arial, Tahoma, Verdana, sans-serif;
+	}
+
+.portal-menu {
+	min-width: 960px;
+	border: none;
+	z-index: 1000;
+	margin-bottom: 0;
+}
+
+	.portal-menu_width {
+		width: 95%;
+		max-width: 1500px;
+		margin: 0 auto;
+		padding: 0;
+	}
+
+.pm-logo__link {
+	display: block;
+	height: 56px;
+	padding-left: 72px;
+}
+	.pm-logo__link img {
+		border: none; /* fix ie10 */
+	}
+
+			
+		</style>
+		<script nonce="<!--# echo var='csp_nonce' -->">
+			/* begin: mrg-xray */
+
+var xray = (function(){function a(a,b){if(b=b||{},d(c("t="+(n.RadarPrefix||"")+a)).forEach(function(a){if(n.verbose)try{m("xray",a,b.immediately?"immediately":"",b.ga?"ga "+b.ga:"")}catch(a){}l.push(a)}),b.immediately?h():!i&&(i=!0,k=window.setTimeout(h,1e3)),b.ga&&("string"==typeof b.ga||n.GA_TRACKING_ID)){var e=c("t="+a);"string"==typeof e.i?e.i.split(",").forEach(function(a){var c=a.split(":");f(e.t+"_"+c[0],c[1],b.ga)}):f(e.t,e.v,b.ga)}}function b(a,b){b=b.split("=");var c;try{c=decodeURIComponent(b[1])}catch(a){c=b[1]}return c&&(a[b[0]]=c),a}function c(a){return"string"==typeof a?a.split("&").reduce(b,{}):a}function d(a){var b=Math.ceil;function c(){e={},d=0,Object.keys(a).forEach(function(b){e[b]=a[b]}),n.pgid&&(e.uniqid=o++)}var d,e,f=[];if(n.pgid&&(a.uniqid=o++),a.i&&a.i.length>n.MAX_CHUNK_SIZE)c(),e.i=[],a.i.split(/,/).forEach(function(a,b,g){d+a.length+e.i.length<n.MAX_CHUNK_SIZE?(e.i.push(a),d+=a.length):(e.i=e.i.join(","),f.push(e),c(),e.i=[a]),b+1===g.length&&(e.i=e.i.join(","),f.push(e))});else if(a.rlog_message&&a.rlog_message.length>n.MAX_CHUNK_SIZE)for(var g=a.rlog_message,h=b(g.length/(n.MAX_CHUNK_SIZE/2)),j=(new Date().valueOf()*Math.random()).toString(36),k=0;k<h;k++)c(),e.rlog_message=JSON.stringify({id:j,cnt:h,index:k,part:g.slice(k*n.MAX_CHUNK_SIZE/2,(k+1)*n.MAX_CHUNK_SIZE/2)}),f.push(e);else f.push(a);return f}function e(a){if(!window.gtag){var b=document.createElement("script");b.src="https://www.googletagmanager.com/gtag/js?id="+a,b.type="text/javascript",document.getElementsByTagName("head")[0].appendChild(b),window.dataLayer=window.dataLayer||[],window.gtag=function a(){dataLayer.push(arguments)},gtag("js",new Date)}"string"==typeof a&&gtag("config",a,{send_page_view:!1})}function f(a,b,c){if("function"!=typeof gtag){if(!c)return;e(c)}var d=a.split(/_/g),f=d[0],g=d[1],h=d.slice(2).join("_"),i={event_category:f,event_label:h,value:b};"string"==typeof c&&(i.send_to=c),gtag("event",g,i)}function g(a){var b={url:(n.XRAY_RADAR_URL||"https://xray.mail.ru")+"/batch?"+j,data:"batch="+a,type:"POST",async:!0},c=new window.XMLHttpRequest;if("function"==typeof n.beforeSend&&!1===n.beforeSend(c,b))return void c.abort();if(c.open(b.type,b.url,b.async),b.headers)for(var d in b.headers)c.setRequestHeader(d,b.headers[d]);c.send(b.data)}function h(){if(i=!1,clearTimeout(k),l.length){for(var a,b=l;a=JSON.stringify(b),!!(a.length>n.MAX_BATCH_SIZE);)if(1<b.length)b=b.slice(0,-1);else throw new Error("Too long line: "+a);b.length&&(g(a),l=l.slice(b.length)),l.length&&h()}}var i,j,k,l=[],m="console"in window&&(console.debug||console.log).bind(console)||new Function,n={},o=0;return a.setConfig=function(a,b){a!==n&&(b?n=a:Object.keys(a).forEach(function(b){n[b]=a[b]})),n.MAX_BATCH_SIZE=n.MAX_BATCH_SIZE||6e4,n.MAX_CHUNK_SIZE=n.MAX_CHUNK_SIZE||4e3,n.project=n.project||"mail",n.pgid=n.pgid||(Date.now()+Math.random()).toString(36);var c="undefined"!=typeof n.omicronVersion&&"undefined"!=typeof n.omicronShortSegments;j=["p="+n.project,n.ActiveEmail?"email="+n.ActiveEmail:"",n.split?"split="+n.split:"",n.utm?"utm="+encodeURIComponent(JSON.stringify(n.utm)):"",document.referrer?"r="+encodeURIComponent(document.referrer):"",n.pgid?"pgid="+n.pgid:"",c?"o_ss="+n.omicronShortSegments:"",c?"o_v="+n.omicronVersion:""].filter(function(a){return a}).join("&"),n.GA_TRACKING_ID&&e(n.GA_TRACKING_ID)},a.getConfig=function(){return n},a.setConfig(n),a})();
+
+/* end: mrg-xray */
+
+		</script>
+	</head>
+
+	<body class=" error-page_404">
+		
+			<style>#portal-menu.portal-menu{position:relative;padding:0;z-index:1;display:block;-webkit-font-smoothing:antialiased}.portal-menu_width{display:block;margin:0 auto;position:relative;z-index:2}.w-pm-menu{position:relative;z-index:3;display:block;width:100%;height:56px}.w-pm-menu,.w-pm-menu_submenu{-webkit-box-shadow:0 2px 0 0 rgba(0,0,0,.04);box-shadow:0 2px 0 0 rgba(0,0,0,.04)}.w-pm-menu_submenu{z-index:2;height:40px}.pm-menu{display:table;width:100%;margin:0 auto;height:56px;font:15px/18px Helvetica Neue Light,Arial,Tahoma,sans-serif}.pm-menu_submenu{height:40px}.pm-menu__left{text-align:left;width:1%;padding-right:20px}.pm-menu__left,.pm-menu__center{display:table-cell;vertical-align:top}.pm-menu__center{text-align:center}.pm-menu__center__inner{visibility:hidden}.pm-menu__left__inner,.pm-menu__center__inner{display:block;position:relative;height:56px;white-space:nowrap}.pm-menu__left__inner__leg,.pm-menu__center__inner__leg{display:inline-block;height:0;overflow:hidden;visibility:hidden}.pm-menu__left__inner_submenu,.pm-menu__center__inner_submenu{height:40px}.w-pm-menu{background:#005ff9}.w-pm-menu_submenu{background:#333}.pm-menu{background:#005ff9;color:#333}.pm-menu_submenu,.pm-menu__left__inner_submenu,.pm-menu__center__inner_submenu{background:#333}</style>
+
+
+
+
+<script src="//ad.mail.ru/adj/3355" nonce="<!--# echo var='csp_nonce' -->"></script>
+
+<script src="//r.mail.ru/rb/3846?preview=8" nonce="<!--# echo var='csp_nonce' -->"></script>
+
+
+<div id="portal-menu" class="portal-menu">
+	<div class="pm-css-checker" id="pm-css-checker" style="display: none;"></div>
+	<div id="portal-menu__toolbar" class="portal-menu__toolbar w-pm-menu">
+		<div class="portal-menu_width">
+			<div class="pm-menu">
+				<div class="pm-menu__left">
+					<div class="pm-menu__left__inner">
+						<div class="pm-logo" data-config-id="0" bem-id="3">
+              
+                <a class="pm-logo__link" href="//mail.ru/" style="width:162px">
+                  <img
+                          class="pm-logo__link__pic"
+                          src="https://img.imgsmail.ru/static.promo/logo/rebranding/header_contrast_mail.svg"
+                          alt="Почта Mail.ru"
+                          title="Почта Mail.ru"
+                          width="162"
+                          height="32"
+                          style="margin-top: 12px;">
+                </a>
+              
+						</div>
+					</div>
+				</div>
+				<div class="pm-menu__center">
+					<div class="pm-menu__center__inner">
+						<i class="pm-menu__center__inner__leg" style="visibility: hidden">s</i>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div id="portal-menu__submenu" class="portal-menu__submenu w-pm-menu w-pm-menu_submenu" style="display: none;">
+		<div class="portal-menu_width">
+			<div class="pm-menu pm-menu_submenu">
+				<div class="pm-menu__center pm-menu__center_submenu">
+					<div class="pm-menu__center__inner pm-menu__center__inner_submenu">
+						<i class="pm-menu__center__inner__leg pm-menu__center__inner__leg_submenu" style="visibility: hidden">s</i>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+			<div class="error-message_sketch">
+	<div class="page-error" style="background-image:url('https://img.imgsmail.ru/static.promo/error-page/404-box.png'); background-position: 0 100%">
+		<div class="page-error__bg" style="background-image:url('https://img.imgsmail.ru/static.promo/error-page/404-image.png');">
+			<div class="page-error__content">
+				<div class="page-error__body">
+					<h1 class="page-error__heading">Упс... Такой страницы нет</h1>
+					<p class="page-error__message">Вы зашли на несуществующую страницу.<br/>Вернитесь во <a href=/inbox/>Входящие</a></p>
+				</div>
+			</div>
+		</div>
+	</div>
+  
+    <div class="error-footer">
+      <p>Mail.Ru Group, Москва - Все права защищены.</p>
+      <img src="https://img.imgsmail.ru/static.promo/error-page/mail_logo_gray.svg" width="60" height="20" alt="" />
+    </div>
+  
+</div>
+
+		
+		<script nonce="<!--# echo var='csp_nonce' -->">
+			xray.setConfig({
+				project: 'error-pages',
+				ActiveEmail: '@',
+			});
+			xray('load&v=1&i=404:1');
+			xray('p_' + window.location.host.replace('.mail.ru', '').replace(/\./g, '-') + '&v=1');
+		</script>
+		
+		
+		<script nonce="<!--# echo var='csp_nonce' -->">
+			try {
+			  if (window.self !== window.top) {
+			    top.postMessage({
+						data: {
+						  name: 'send',
+						  args: ['LoadingCompleted', { 'ok': false, error: '404' }]
+						},
+						type: 'functionCall'
+			    }, '*');
+			  }
+			} catch (e) {}
+		</script>
+		
+	</body>
+</html>
+
+
+
+
+

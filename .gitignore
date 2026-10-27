@@ -1,0 +1,17 @@
+node_modules/
+dist/
+out/
+core/
+keys/
+server/node_modules/
+server/data/
+server/.env*
+.vercel/
+server/.vercel/
+web/.vercel/
+web/.env*
+web/public/
+web/api/_lib/
+intro/render/
+*.blockmap
+.env*

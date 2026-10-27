@@ -1,0 +1,10 @@
+.env.local
+.env*
+data
+node_modules
+.vercel
+.agents
+.claude
+skills-lock.json
+bot-avatar.jpg
+scripts

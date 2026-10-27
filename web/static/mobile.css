@@ -1,0 +1,192 @@
+/* Сайт-приложение Horizon на телефоне: те же страницы, раскладка под узкий экран. */
+
+/* Кнопка «Настроить» открывает панель оформления браузера — на сайте её нет */
+#customize {
+  display: none !important;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  -webkit-tap-highlight-color: transparent;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+@media (max-width: 640px) {
+  /* ---------- Главная ---------- */
+  .clock {
+    margin-bottom: 18px;
+  }
+
+  .time {
+    font-size: 64px;
+    letter-spacing: -1px;
+  }
+
+  .search-wrap {
+    width: 100%;
+  }
+
+  .search {
+    height: 50px;
+    padding: 0 16px;
+  }
+
+  .search input {
+    font-size: 16px; /* iPhone не увеличивает страницу при вводе */
+  }
+
+  .tiles {
+    gap: 6px;
+    margin-top: 24px;
+  }
+
+  .tile {
+    width: 80px;
+    height: 96px;
+    gap: 8px;
+    padding: 0 2px;
+  }
+
+  .tile-icon {
+    width: 54px;
+    height: 54px;
+  }
+
+  .tile-icon img {
+    width: 32px;
+    height: 32px;
+  }
+
+  .tile-title {
+    font-size: 11.5px;
+  }
+
+  /* На сенсорном экране крестик плитки виден всегда */
+  .tile-remove {
+    display: grid;
+    width: 20px;
+    height: 20px;
+    opacity: 0.75;
+  }
+
+  .card.picker {
+    width: 100%;
+    max-height: calc(100vh - 24px);
+    padding: 16px;
+  }
+
+  .picker-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .pick-icon {
+    width: 46px;
+    height: 46px;
+  }
+
+  /* ---------- Выдача ---------- */
+  .top {
+    padding: 10px 12px 0;
+  }
+
+  .top-row {
+    gap: 8px;
+  }
+
+  .mark {
+    width: 32px;
+    height: 32px;
+    flex: none;
+  }
+
+  .top .search {
+    height: 44px;
+    padding: 0 4px 0 12px;
+  }
+
+  .top .search input {
+    font-size: 16px;
+  }
+
+  .go {
+    height: 34px;
+    padding: 0 12px;
+  }
+
+  .verticals {
+    margin: 6px -12px 0;
+    padding: 0 8px;
+  }
+
+  .vert {
+    padding: 0 9px;
+    font-size: 13.5px;
+  }
+
+  .page {
+    padding: 14px 12px 48px;
+  }
+
+  .layout {
+    gap: 24px;
+  }
+
+  .result-title {
+    font-size: 17px;
+  }
+
+  .featured {
+    flex-wrap: wrap;
+  }
+
+  .gallery {
+    columns: 2;
+    column-gap: 8px;
+  }
+
+  .videos {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .maps {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .map-frame {
+    height: 60vh;
+  }
+
+  .money {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .shops {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .video-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Просмотр картинки: картинка сверху, настройки скачивания снизу */
+  .viewer-stage {
+    padding: 56px 12px 12px;
+  }
+
+  .viewer-stage img {
+    max-height: 52vh;
+  }
+
+  .viewer-side {
+    max-height: 46vh;
+    padding: 16px;
+  }
+
+  .viewer-nav {
+    top: 30%;
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "horizon-web",
+  "private": true,
+  "description": "Horizon для телефона — сайт-приложение",
+  "engines": { "node": ">=20" }
+}

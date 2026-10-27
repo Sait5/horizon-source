@@ -1,0 +1,44 @@
+# Сборка Horizon для Mac на бесплатной машине macOS от GitHub: один .dmg для Intel и Apple M.
+name: Сборка для Mac
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+jobs:
+  mac:
+    runs-on: macos-14
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Зависимости
+        run: npm ci
+
+      - name: Ядро VPN для Mac (Intel + Apple M)
+        run: node scripts/fetch-core.js
+
+      - name: Установщик .dmg
+        run: npx electron-builder --mac dmg --universal --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Проверка приложения
+        run: |
+          APP=$(ls -d dist/mac-universal/*.app | head -1)
+          lipo -info "$APP/Contents/MacOS/Horizon"
+          lipo -info "$APP/Contents/Resources/core/sing-box"
+          codesign --verify --verbose=2 "$APP" || true
+          ls -lh dist/*.dmg
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: horizon-mac
+          path: dist/*.dmg
+          retention-days: 14

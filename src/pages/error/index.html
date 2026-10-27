@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'">
+  <title>Страница не открылась</title>
+  <link rel="stylesheet" href="error.css">
+</head>
+<body>
+  <main class="box">
+    <svg class="mark" id="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5 15a7 7 0 0 1 14 0" /><path d="M2 15h20" /><path d="M6 19h12" />
+    </svg>
+    <h1 id="title">Страница не открылась</h1>
+    <p id="text"></p>
+    <p class="url" id="url"></p>
+    <button id="retry">Повторить</button>
+    <p class="code" id="code"></p>
+  </main>
+  <script src="error.js"></script>
+</body>
+</html>
