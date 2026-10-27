@@ -23,6 +23,8 @@ jobs:
 
       - name: Ядро VPN для Mac (Intel + Apple M)
         run: node scripts/fetch-core.js
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Установщик .dmg
         run: npx electron-builder --mac dmg --universal --publish never
