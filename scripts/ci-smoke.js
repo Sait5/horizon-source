@@ -43,6 +43,7 @@ child.on('exit', (code) => {
     check(/^horizon:\/\/start/.test(r.url || ''), 'открылась главная', r.url);
     check(r.page && r.page.search && r.page.tiles >= 1, 'на главной есть поиск и плитки', JSON.stringify(r.page));
     check(r.page && Array.isArray(r.page.video) && r.page.video[0] >= 1 && !r.page.video[1], 'видео волн открывается', JSON.stringify(r.page && r.page.video));
+    console.log('   файл видео:', JSON.stringify(r.videoFile), '| плеер:', JSON.stringify(r.videoState));
     check(Number(r.popular) > 10, 'внутренние данные браузера отвечают', String(r.popular));
     check(r.platform === process.platform, 'интерфейс знает свою систему', r.platform);
     for (const name of ['start', 'ui']) {
