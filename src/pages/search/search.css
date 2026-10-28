@@ -1086,3 +1086,7 @@ body.kids .verticals::after {
     right: 14px;
   }
 }
+
+.wiki-head {
+  margin-top: 26px;
+}

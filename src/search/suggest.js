@@ -474,8 +474,14 @@ function correctQuery(raw) {
   if (!best || best.score < 56) return null;
   const lower = text.toLowerCase();
   const typed = [squash(lower), squash(translit(lower))];
-  const asTyped = nameForms(catalogNames(best.entry)).some((n) => typed.some((q) => n === q || (q.length >= 2 && n.startsWith(q))));
-  return asTyped ? null : { text: best.name };
+  const forms = nameForms(catalogNames(best.entry));
+  const asTyped = forms.some((n) => typed.some((q) => n === q || (q.length >= 2 && n.startsWith(q))));
+  if (asTyped) return null;
+  // Исправляется только настоящая опечатка — одна-две буквы от названия целиком.
+  // «кейсер» — это другой сайт, а не «рейтер» (Reuters).
+  typed.push(squash(switchLayout(lower)));
+  const close = forms.some((n) => typed.some((q) => distance(q, n, q.length >= 8 ? 2 : 1) <= (q.length >= 8 ? 2 : 1)));
+  return close ? { text: best.name } : null;
 }
 
 module.exports = { shopSites, relatedSites, popularSites, suggest, resolve, quickSites, calculate, switchLayout, looksLikeUrl, findCategory, siteMatch, correctQuery, SEARCH_PAGE };
