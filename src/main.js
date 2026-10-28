@@ -732,7 +732,8 @@ function sendProfile() {
   const state = profile.publicState();
   win.webContents.send('profile', state);
   if (overlay) overlay.webContents.send('theme', state.palette);
-  win.setTitleBarOverlay({ color: state.palette.strip, symbolColor: state.palette.text });
+  // Кнопки окна в цвет темы — только на Windows: на Mac этого вызова нет, и он ронял запуск.
+  if (process.platform === 'win32') win.setTitleBarOverlay({ color: state.palette.strip, symbolColor: state.palette.text });
   win.setBackgroundColor(state.palette.bg);
   for (const tab of tabs.values()) {
     tab.view.setBackgroundColor(state.palette.bg);
@@ -1540,6 +1541,8 @@ const traceStart = Date.now();
 const trace = (step) => process.env.HORIZON_TRACE === '1' && process.stderr.write(`[запуск] ${step} +${Date.now() - traceStart} мс
 `);
 process.on('unhandledRejection', (error) => console.error('[ошибка]', error && error.stack ? error.stack : error));
+// Непредвиденная ошибка пишется в журнал, а не открывает окно, которое замораживает весь браузер.
+process.on('uncaughtException', (error) => console.error('[ошибка]', error && error.stack ? error.stack : error));
 
 // Самопроверка для машин сборки (HORIZON_SELFTEST=<папка>): главная, поиск, плитки и волны работают,
 // снимки окна сохраняются в папку, итог печатается одной строкой — и программа закрывается.
