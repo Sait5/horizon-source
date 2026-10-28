@@ -9,7 +9,8 @@ const exe = process.argv[2];
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'horizon-smoke-'));
 const outDir = path.resolve('dist');
 
-const child = spawn(exe, [], {
+// На машине сборки macOS спросила бы доступ к «Связке ключей» и ждала нажатия — используем пробную связку Chromium.
+const child = spawn(exe, process.platform === 'darwin' ? ['--use-mock-keychain'] : [], {
   env: { ...process.env, HORIZON_PROFILE_DIR: profile, HORIZON_NO_INTRO: '1', HORIZON_TRACE: '1', HORIZON_SELFTEST: outDir },
   stdio: ['ignore', 'pipe', 'pipe'],
 });
