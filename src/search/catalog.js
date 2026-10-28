@@ -30,6 +30,8 @@ const CATEGORIES = {
   anime: { name: 'Аниме', words: ['аниме', 'anime', 'манга'] },
   books: { name: 'Книги', words: ['книги', 'книга', 'читать книги', 'литература', 'аудиокниги'] },
   wiki: { name: 'Справка', words: ['справка', 'энциклопедия', 'вики'] },
+  engines: { name: 'Поисковики', words: ['поисковик', 'поисковики', 'поисковая система', 'поисковые системы'] },
+  browsers: { name: 'Браузеры', words: ['браузер', 'браузеры', 'скачать браузер'] },
 };
 
 const SITES = [
@@ -236,6 +238,19 @@ const SITES = [
   { name: 'Мос.ру', host: 'mos.ru', aliases: ['мос ру', 'мосру'], tags: ['gov'] },
   { name: 'КонсультантПлюс', host: 'consultant.ru', aliases: ['консультант', 'законы'], tags: ['gov'] },
   // Разное
+  // Поисковики — как обычные сайты: открыть Google или Яндекс можно, искать через них Horizon не будет.
+  { name: 'Google', host: 'google.com', aliases: ['гугл', 'гугол', 'google search', 'гугл поиск'], tags: ['engines'], search: 'https://www.google.com/search?q={q}' },
+  { name: 'Яндекс', host: 'ya.ru', aliases: ['yandex', 'яндекс поиск', 'я.ру', 'ya'], tags: ['engines'], search: 'https://ya.ru/search/?text={q}' },
+  { name: 'Bing', host: 'bing.com', aliases: ['бинг'], tags: ['engines'], search: 'https://www.bing.com/search?q={q}' },
+  { name: 'DuckDuckGo', host: 'duckduckgo.com', aliases: ['дакдакго', 'ddg'], tags: ['engines'], search: 'https://duckduckgo.com/?q={q}' },
+  { name: 'Поиск Mail.ru', host: 'go.mail.ru', aliases: ['мейл поиск', 'go mail'], tags: ['engines'], search: 'https://go.mail.ru/search?q={q}' },
+  { name: 'Google Аккаунт', host: 'myaccount.google.com', aliases: ['гугл аккаунт', 'аккаунт google', 'google account', 'аккаунт гугл'], tags: [] },
+  { name: 'Google Play', host: 'play.google.com', aliases: ['гугл плей', 'плей маркет', 'play market', 'google play store'], tags: ['games'], search: 'https://play.google.com/store/search?q={q}' },
+  { name: 'Chrome', host: 'google.com/chrome', aliases: ['хром', 'гугл хром', 'google chrome'], tags: ['browsers'] },
+  { name: 'Яндекс Браузер', host: 'browser.yandex.ru', aliases: ['яндекс браузер', 'yandex browser'], tags: ['browsers'] },
+  { name: 'Firefox', host: 'mozilla.org/ru/firefox', aliases: ['файрфокс', 'фаерфокс', 'мозилла', 'mozilla'], tags: ['browsers'] },
+  { name: 'Opera', host: 'opera.com/ru', aliases: ['опера'], tags: ['browsers'] },
+  { name: 'Microsoft Edge', host: 'microsoft.com/ru-ru/edge', aliases: ['эдж', 'edge'], tags: ['browsers'] },
   { name: 'Speedtest', host: 'speedtest.net', aliases: ['спидтест', 'скорость интернета'], tags: [] },
   { name: 'Microsoft', host: 'microsoft.com', aliases: ['майкрософт'], tags: [] },
 ];

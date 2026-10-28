@@ -151,6 +151,14 @@ function scoreNames(names, forms) {
   return best;
 }
 
+// Насколько сайт подходит к запросу: точное название или другое написание важнее совпадения по адресу
+// («google» — это Google, а не Gmail с адресом mail.google.com).
+function entryScore(entry, forms) {
+  const byName = scoreNames([entry.name, ...entry.aliases], forms);
+  const byHost = scoreNames(catalogNames(entry), forms) - 6;
+  return Math.max(byName, byHost);
+}
+
 function catalogNames(entry) {
   const host = stripHost(entry.host.split('/')[0]);
   const root = host.split('.').length > 2 ? host.split('.').slice(-2)[0] : host.split('.')[0];
@@ -248,6 +256,8 @@ function calculate(text) {
 
 // «ютуб котики» → поиск «котики» прямо на YouTube (точное название сайта в начале запроса).
 function siteSearch(text) {
+  const whole = squash(text.toLowerCase());
+  if (SITES.some((e) => [e.name, ...e.aliases].some((n) => squash(n.toLowerCase()) === whole))) return null;
   const lower = text.toLowerCase();
   for (const entry of SITES) {
     if (!entry.search) continue;
@@ -343,7 +353,7 @@ function suggest(text, { tabs = [], bookmarks = [], history = [] } = {}, { limit
   }
   const matched = [];
   for (const entry of SITES) {
-    const s = score(catalogNames(entry));
+    const s = entryScore(entry, forms);
     if (s >= 40 && push(siteItem(entry, s))) matched.push({ entry, s });
   }
 
@@ -449,7 +459,7 @@ function siteMatch(raw) {
   const forms = queryForms(text);
   let best = null;
   for (const entry of SITES) {
-    const s = scoreNames(catalogNames(entry), forms);
+    const s = entryScore(entry, forms);
     if (!best || s > best.s) best = { entry, s };
   }
   return best && best.s >= 40 ? { name: best.entry.name, score: best.s, entry: best.entry } : null;
