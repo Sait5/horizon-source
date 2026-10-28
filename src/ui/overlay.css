@@ -84,6 +84,34 @@ body.modal .backdrop {
   min-height: 0;
 }
 
+/* Полоса прокрутки (профиль, сейф и др.): тонкая, в цвет темы, а не светлая системная. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--text) 16%, transparent);
+  border: 3px solid transparent;
+  border-radius: 10px;
+  background-clip: padding-box;
+  transition: background-color 0.2s;
+}
+
+::-webkit-scrollbar-thumb:hover,
+::-webkit-scrollbar-thumb:active {
+  background-color: var(--accent);
+}
+
+::-webkit-scrollbar-button {
+  display: none;
+}
+
 .head {
   display: flex;
   align-items: center;

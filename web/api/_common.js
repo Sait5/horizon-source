@@ -16,15 +16,13 @@ const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
 
 // Есть ли сайт по угаданному адресу — то же правило, что в браузере на компьютере:
 // отвечает (даже страницей защиты 403/503) — есть; 404, 410, 5xx или тишина — нет.
+// Есть ли домен вообще — DNS-запросом, а не системным поиском: тот занимает общие потоки,
+// и несуществующие домены задерживали бы остальные запросы.
+function resolveHost(host) {
+  return dns.resolve4(host).catch(() => dns.resolve6(host)).catch(() => null);
+}
+
 async function probeSite(url) {
-  // Сначала — есть ли домен вообще (через DNS-запрос, а не системный поиск: тот занимает общие потоки
-  // и несуществующие домены задерживали бы остальные запросы).
-  const host = new URL(url).hostname;
-  const exists = await Promise.race([
-    Promise.any([dns.resolve4(host), dns.resolve6(host)]).then(() => true, () => false),
-    new Promise((r) => setTimeout(() => r(false), 2500)),
-  ]);
-  if (!exists) return null;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 5000);
   try {
@@ -55,7 +53,7 @@ async function probeSite(url) {
   }
 }
 
-const verticals = createVerticals(fetchJson, probeSite);
+const verticals = createVerticals(fetchJson, probeSite, resolveHost);
 // На сайте нет аккаунтов и возраста, поэтому выдача всегда без материалов 18+.
 const searchPageData = createSearchPageData({ verticals, strict: () => true });
 
