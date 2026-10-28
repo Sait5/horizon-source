@@ -426,6 +426,7 @@ function applyWebRtcPolicy(wc) {
 }
 
 function createTab(url = START_URL, { focusAddressBar = true, activate = true } = {}) {
+  trace('вкладка: создание');
   const id = nextId++;
   const view = new WebContentsView({
     webPreferences: {
@@ -437,6 +438,7 @@ function createTab(url = START_URL, { focusAddressBar = true, activate = true } 
       webSecurity: true,
     },
   });
+  trace('вкладка: вид создан');
   view.setBackgroundColor(profile.publicState().palette.bg);
   const tab = { id, view, title: 'Новая вкладка', url, loading: true, favicon: null, passwordFields: false, pendingSave: null };
   tabs.set(id, tab);
@@ -1301,10 +1303,13 @@ function createWindow() {
   win.webContents.once('did-finish-load', () => {
     trace('интерфейс загружен');
     sendProfile();
+    trace('профиль отправлен');
     win.webContents.send('account', account.publicState());
+    trace('аккаунт отправлен');
     const wantIntro = !profile.settings.introSeen || profile.appearance.introEveryLaunch;
     introPending = wantIntro && process.env.HORIZON_NO_INTRO !== '1';
     openInitialTabs();
+    trace('вкладки открыты');
     if (introPending) showIntro();
   });
   win.on('close', saveSessionNow);
