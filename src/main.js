@@ -1536,6 +1536,32 @@ const trace = (step) => process.env.HORIZON_TRACE === '1' && process.stderr.writ
 `);
 process.on('unhandledRejection', (error) => console.error('[ошибка]', error && error.stack ? error.stack : error));
 
+// Самопроверка для машин сборки (HORIZON_SELFTEST=<папка>): главная, поиск, плитки и волны работают,
+// снимки окна сохраняются в папку, итог печатается одной строкой — и программа закрывается.
+async function selfTest() {
+  const dir = process.env.HORIZON_SELFTEST;
+  const result = { window: Boolean(win && !win.isDestroyed()) };
+  const tab = tabs.get(activeId);
+  const wc = tab && tab.view.webContents;
+  result.url = wc ? wc.getURL() : null;
+  const run = (target, code) => target.executeJavaScript(code).catch((error) => `ошибка: ${error.message}`);
+  if (wc) {
+    result.page = await run(wc, `({ search: !!document.getElementById('query'), tiles: document.querySelectorAll('.tile').length, video: (() => { const v = document.getElementById('liveA'); return v ? [v.readyState, v.error && v.error.message] : null; })() })`);
+    result.popular = await run(wc, `fetch('/popular.json').then((r) => r.json()).then((l) => l.length)`);
+  }
+  if (win) result.platform = await run(win.webContents, 'document.documentElement.dataset.platform');
+  for (const [name, target] of [['start', wc], ['ui', win && win.webContents]]) {
+    if (!target) continue;
+    try {
+      fs.writeFileSync(path.join(dir, `smoke-${name}.png`), (await target.capturePage()).toPNG());
+    } catch (error) {
+      result[`${name}Shot`] = error.message;
+    }
+  }
+  process.stderr.write(`[самопроверка] ${JSON.stringify(result)}\n`);
+  app.exit(0);
+}
+
 app.whenReady().then(async () => {
   trace('готов');
   profile = new Profile(app, safeStorage);
@@ -1555,6 +1581,7 @@ app.whenReady().then(async () => {
   trace('vpn');
   createWindow();
   trace('окно');
+  if (process.env.HORIZON_SELFTEST) setTimeout(selfTest, 15000);
   updater.on('change', sendState);
   updater.start({ app });
 });
