@@ -53,27 +53,57 @@ const ENGLISH = {
   бесплатно: 'free', бесплатные: 'free', онлайн: 'online', магазин: 'shop', яндекс: 'yandex', новости: 'news', погода: 'weather',
   музыка: 'music', фильмы: 'movies', кино: 'movies', аниме: 'anime', карты: 'maps', почта: 'mail', переводчик: 'translate', сайт: '', сайты: '',
 };
+// Английские корни, записанные по-русски: «кейсер» → caser, «кейсбатл» → casebattle, «скинстейк» → skinsteak.
+const STEMS = [
+  ['апгрейд', 'upgrade'], ['маркет', 'market'], ['кейс', 'case'], ['скин', 'skin'], ['дроп', 'drop'], ['трейд', 'trade'],
+  ['батл', 'battle'], ['гейм', 'game'], ['плей', 'play'], ['стейк', 'steak'], ['лаки', 'lucky'], ['фарм', 'farm'],
+  ['чек', 'check'], ['шоп', 'shop'], ['хаб', 'hub'], ['бокс', 'box'], ['ган', 'gun'], ['вин', 'win'], ['фаст', 'fast'],
+  ['кс', 'cs'], ['бет', 'bet'], ['топ', 'top'], ['лайв', 'live'], ['стор', 'store'],
+];
+const ENDINGS = [['ер', 'er'], ['еры', 'ers'], ['ы', 's'], ['с', 's'], ['', '']];
+function englishWord(word) {
+  if (ENGLISH[word] !== undefined) return ENGLISH[word];
+  let out = '';
+  let rest = word;
+  // Слово целиком из корней и окончания: «кейс»+«ер», «кейс»+«батл»
+  while (rest) {
+    const stem = STEMS.find(([ru]) => rest.startsWith(ru));
+    if (stem) {
+      out += stem[1];
+      rest = rest.slice(stem[0].length);
+      continue;
+    }
+    const ending = ENDINGS.find(([ru]) => ru && rest === ru);
+    if (ending && out) return out.replace(/e$/, '') + (ending[1].startsWith('e') ? ending[1] : out.endsWith('e') ? 'e' + ending[1] : ending[1]);
+    return null;
+  }
+  return out || null;
+}
 function english(query) {
-  const words = String(query).toLowerCase().split(/\s+/).filter(Boolean);
-  if (!words.some((w) => ENGLISH[w] !== undefined)) return null;
-  return words.map((w) => (ENGLISH[w] !== undefined ? ENGLISH[w] : latin(w))).filter(Boolean).join(' ');
+  const words = String(query).toLowerCase().replace(/ё/g, 'е').split(/\s+/).filter(Boolean);
+  const mapped = words.map(englishWord);
+  if (!mapped.some((w) => w !== null)) return null;
+  return words.map((w, i) => (mapped[i] !== null ? mapped[i] : latin(w))).filter(Boolean).join(' ');
 }
 
 // Заголовки страниц защиты от роботов и ошибок
-const PROTECTION_TITLE = /just a moment|attention required|access denied|forbidden|^40\d|^50\d|ddos-guard|checking your browser|капча|captcha|are you a robot|вы не робот/i;
+// Захваченные домены со спамом онлайн-казино («Bandar Togel», «slots online») — не сайты, которые искали.
+const SPAM_TITLE = /togel|bandar|judi |gacor|slots? online|online slots?|situs |kupontoto|casino online|онлайн[- ]казино|казино онлайн/i;
+
+const PROTECTION_TITLE =/just a moment|attention required|access denied|forbidden|^40\d|^50\d|ddos-guard|checking your browser|капча|captcha|are you a robot|вы не робот/i;
 
 // Страницы на чужих языках («yandex.com/games/zh/…») русскому читателю не нужны.
 const FOREIGN_LOCALES = new Set(['zh', 'hi', 'he', 'th', 'ja', 'ko', 'ar', 'de', 'fr', 'es', 'it', 'pt', 'pl', 'tr', 'vi', 'id', 'fa', 'nl', 'sv', 'ro', 'hu', 'el', 'bn', 'ms', 'zh-cn', 'zh-tw', 'pt-br', 'es-es', 'fr-fr', 'de-de', 'ja-jp', 'ko-kr']);
 
 // Возможные адреса сайта по словам запроса: «market csgo» → market.csgo.com, csgo.market, marketcsgo.com…
-const TLDS = ['com', 'ru', 'net', 'gg', 'io', 'org', 'pro'];
+const TLDS = ['com', 'ru', 'net', 'gg', 'io', 'org', 'pro', 'one', 'me', 'fun'];
 const TLD_WORDS = new Set(['market', 'shop', 'store', 'games', 'game', 'live', 'pro', 'net', 'org', 'io', 'gg', 'ru', 'com', 'app', 'online', 'site', 'club', 'fun', 'top', 'win', 'bet', 'case', 'cases']);
 function guessHosts(query) {
   const words = latin(query).split(/[^a-z0-9]+/).filter((w) => w.length >= 2).slice(0, 3);
   if (!words.length || words.join('').length < 4) return [];
   const hosts = new Set();
   const joined = words.join('');
-  for (const tld of TLDS.slice(0, words.length === 1 ? 7 : 3)) hosts.add(`${joined}.${tld}`);
+  for (const tld of TLDS.slice(0, words.length === 1 ? 10 : 3)) hosts.add(`${joined}.${tld}`);
   if (words.length === 2) {
     const [a, b] = words;
     hosts.add(`${a}-${b}.com`);
@@ -82,7 +112,7 @@ function guessHosts(query) {
     if (TLD_WORDS.has(a)) hosts.add(`${b}.${a}`);
     if (TLD_WORDS.has(b)) hosts.add(`${a}.${b}`);
   }
-  return [...hosts].slice(0, 12);
+  return [...hosts].slice(0, 14);
 }
 
 // fetchJson — запрос JSON; probe(url) → { url, title } если сайт открывается, иначе null.
@@ -125,6 +155,8 @@ function createVerticals(fetchJson, probe = null) {
       let pos = 0;
       for (const m of (d.matches || []).filter((x) => x.rule && x.rule.issueType === 'misspelling' && x.replacements && x.replacements[0])) {
         const word = query.substr(m.offset, m.length);
+        // Короткие слова и сокращения («гта», «кс», «дс») — не опечатки: «гта 5» не «гто 5».
+        if (word.length <= 3) continue;
         let fix = m.replacements[0].value;
         if (word === word.toLowerCase()) fix = fix.toLowerCase();
         out += query.slice(pos, m.offset) + fix;
@@ -320,7 +352,10 @@ function createVerticals(fetchJson, probe = null) {
           if (segments.some((p) => FOREIGN_LOCALES.has(p))) return;
           const host = u.hostname.toLowerCase().replace(/^www\./, '');
           // SEO-зеркала чужих сайтов: csgocases.com.statvoo.com
-          if (/\.(com|net|org|ru|io|gg|pro|shop)$/.test(host.split('.').slice(0, -2).join('.'))) return;
+          if (/\.(com|net|org|ru|su|ua|io|gg|pro|shop|online|site|tv|me|club|info|xyz|top|cc|co)$/.test(host.split('.').slice(0, -2).join('.'))) return;
+          // Спам на чужих поддоменах: gifuwq7100.nordiskmytologi.se, troy03bp9.ssnblog.com
+          if (host.split('.').length > 2 && /^(?=.*\d.*\d)(?=.*[a-z])[a-z0-9]{6,}$/.test(host.split('.')[0])) return;
+          if (SPAM_TITLE.test(r.title ? text(r.title) : '')) return;
           const key = host + u.pathname.replace(/\/$/, '') + u.search;
           if (seen.has(key)) return;
           seen.add(key);
@@ -347,7 +382,7 @@ function createVerticals(fetchJson, probe = null) {
     if (!probe) return [];
     return cached(`guess:${query}`, async () => {
       const en = english(query);
-      const hosts = [...new Set([...guessHosts(query), ...(en ? guessHosts(en) : [])])].slice(0, 14);
+      const hosts = [...new Set([...guessHosts(query), ...(en ? guessHosts(en) : [])])].slice(0, 24);
       const found = new Array(hosts.length).fill(null);
       let next = 0;
       const worker = async () => {
@@ -362,11 +397,21 @@ function createVerticals(fetchJson, probe = null) {
       const parked = (r, i) => {
         const name = hosts[i].split('.')[0];
         const finalHost = new URL(r.url).hostname.toLowerCase();
-        return !finalHost.includes(name) || /for sale|is parked|buy this domain|домен продаётся|домен продается|купить домен|parking/i.test(r.title);
+        return !finalHost.includes(name) || /for sale|is parked|buy this domain|домен продаётся|домен продается|купить домен|parking|hosted by|suspended|coming soon|under construction|default page|welcome to nginx|index of \/|this domain|домен припаркован|сайт в разработке|сайт временно/i.test(r.title);
       };
-      return found
+      // Выше — сайты с настоящим названием, где есть слово запроса; домены без названия — в конце, не больше двух.
+      const wordsOf = (v) => String(v || '').toLowerCase().split(/[^a-zа-яё0-9]+/).filter((w) => w.length >= 3);
+      const has = (r, v) => wordsOf(v).some((w) => r.title.toLowerCase().includes(w));
+      // «кейсер»: caser.one («КЕЙСЕР (CASER) — Официальный сайт») выше keyser.com (недвижимость в Аризоне).
+      const rank = (r) => (r.title ? 2 : 0) + (has(r, query) ? 4 : 0) + (has(r, en) ? 3 : 0) + (has(r, latin(query)) ? 2 : 0) + (/[а-яё]/i.test(query) && /[а-яё]/i.test(r.title) ? 1 : 0);
+      const list = found
         .map((r, i) => (r && !parked(r, i) ? r : null))
         .filter(Boolean)
+        .sort((a, b) => rank(b) - rank(a));
+      let untitled = 0;
+      return list
+        .filter((r) => !SPAM_TITLE.test(r.title))
+        .filter((r) => r.title || untitled++ < 2)
         .map((r) => ({ title: r.title || new URL(r.url).hostname, url: r.url, host: new URL(r.url).hostname.replace(/^www\./, ''), snippet: '', source: 'guess' }))
         .filter((r) => !seen.has(r.host) && seen.add(r.host));
     });

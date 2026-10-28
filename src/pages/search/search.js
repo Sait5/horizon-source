@@ -115,16 +115,41 @@ function siteResult(site) {
   return item;
 }
 
-async function loadWeb(box, countEl, countText, known, nothingElse) {
+async function loadWeb(box, countEl, countText, known, nothingElse, pagerBox) {
   try {
     const data = await (await fetch(`/api?q=${encodeURIComponent(query)}&tab=all&page=${pageNo}&part=web${exactParam}`)).json();
     const web = data.web || [];
     box.replaceChildren(...web.map(webResult));
     countEl.textContent = countText(known + web.length);
     if (!web.length && nothingElse) box.replaceChildren(el('p', 'empty', 'Ничего не нашлось. Попробуйте другие слова или вкладки выше.'));
+    // Страницы выдачи — по сайтам из интернета, а не по статьям Википедии.
+    if (data.webPages > 1) pagerBox.replaceChildren(pager(Math.max(data.webPages, pageNo)));
   } catch {
     box.replaceChildren(el('p', 'note', 'Сайты из интернета сейчас не загрузились — обновите страницу.'));
   }
+}
+
+function pager(pages) {
+  const nav = el('nav', 'pager');
+  if (pageNo > 1) {
+    const prev = el('a', null, '←');
+    prev.href = href('all', pageNo - 1);
+    nav.append(prev);
+  }
+  for (let n = 1; n <= pages; n++) {
+    if (n === pageNo) nav.append(el('span', 'current', String(n)));
+    else {
+      const a = el('a', null, String(n));
+      a.href = href('all', n);
+      nav.append(a);
+    }
+  }
+  if (pageNo < pages) {
+    const next = el('a', null, '→');
+    next.href = href('all', pageNo + 1);
+    nav.append(next);
+  }
+  return nav;
 }
 
 function webResult(w) {
@@ -168,7 +193,6 @@ function renderAll(data) {
   if (pageNo === 1 && top && !top.category && (directSiteSearch || (top.score >= 64 && ['site', 'bookmark', 'history', 'tab'].includes(top.type)))) {
     left.append(featured(top));
   }
-  const total = (data.wiki && data.wiki.total) || 0;
   if (data.correction) {
     const fix = el('p', 'correction');
     const exact = el('a', null, query);
@@ -176,7 +200,15 @@ function renderAll(data) {
     fix.append(document.createTextNode('Исправлена опечатка — показано для «'), el('b', null, data.correction.text), document.createTextNode('». Искать как написано: '), exact);
     left.prepend(fix);
   }
-  const countText = (n) => (pageNo === 1 ? `Нашлось ${n} ${plural(n, 'сайт', 'сайта', 'сайтов')} и ${total.toLocaleString('ru-RU')} ${plural(total, 'статья', 'статьи', 'статей')} в Википедии` : `Страница ${pageNo}`);
+  // Орфография запрос не подменяет — только предлагает: «кейсер» может быть названием сайта.
+  if (data.suggestion && pageNo === 1) {
+    const hint = el('p', 'correction');
+    const other = el('a', null, data.suggestion);
+    other.href = `?q=${encodeURIComponent(data.suggestion)}`;
+    hint.append(document.createTextNode('Возможно, вы искали: '), other);
+    left.prepend(hint);
+  }
+  const countText = (n) => (pageNo === 1 ? `Нашлось ${n} ${plural(n, 'сайт', 'сайта', 'сайтов')}` : `Страница ${pageNo}`);
   const countEl = el('p', 'count', countText(pageNo === 1 ? sites.length : 0));
   left.prepend(countEl);
   if (pageNo === 1) {
@@ -185,39 +217,26 @@ function renderAll(data) {
       left.append(siteResult(s));
     });
   }
-  // Сайты из интернета догружаются отдельно — сразу после каталога, выше Википедии.
+  // Сайты из интернета догружаются отдельно — сразу после каталога.
   const webBox = el('div', 'web-results');
   webBox.append(el('p', 'note web-loading', 'Ищу сайты в интернете…'));
   left.append(webBox);
-  const wikiAll = (data.wiki && data.wiki.items) || [];
-  const wikiItems = pageNo === 1 ? wikiAll.slice(0, 3) : wikiAll;
+  // Википедия — только статьи с таким же названием (не больше двух) и только на первой странице.
+  const wikiItems = (data.wiki && data.wiki.items) || [];
   if (wikiItems.length) left.append(el('h2', 'section-title wiki-head', 'Из Википедии'));
   for (const w of wikiItems) left.append(wikiResult(w));
-  if (data.wiki && data.wiki.error) left.append(el('p', 'note', 'Статьи Википедии сейчас не загрузились — обновите страницу чуть позже.'));
-  loadWeb(webBox, countEl, countText, pageNo === 1 ? sites.length : 0, !sites.length && !wikiItems.length);
-
-  if (data.pages > 1) {
-    const pager = el('nav', 'pager');
-    if (pageNo > 1) {
-      const prev = el('a', null, '←');
-      prev.href = href('all', pageNo - 1);
-      pager.append(prev);
-    }
-    for (let n = 1; n <= data.pages; n++) {
-      if (n === pageNo) pager.append(el('span', 'current', String(n)));
-      else {
-        const a = el('a', null, String(n));
-        a.href = href('all', n);
-        pager.append(a);
-      }
-    }
-    if (pageNo < data.pages) {
-      const next = el('a', null, '→');
-      next.href = href('all', pageNo + 1);
-      pager.append(next);
-    }
-    left.append(pager);
-  }
+  const pagerBox = el('div');
+  left.append(pagerBox);
+  // У больших поисковиков своя база из миллиардов страниц — если здесь нужного нет, туда один клик.
+  const elsewhere = el('p', 'note elsewhere');
+  elsewhere.append(
+    document.createTextNode('Не нашли нужный сайт? Искать «' + query + '» в '),
+    safeLink(`https://ya.ru/search/?text=${encodeURIComponent(query)}`, null, 'Яндексе'),
+    document.createTextNode(' или '),
+    safeLink(`https://www.google.com/search?q=${encodeURIComponent(query)}`, null, 'Google'),
+  );
+  left.append(elsewhere);
+  loadWeb(webBox, countEl, countText, pageNo === 1 ? sites.length : 0, !sites.length && !wikiItems.length, pagerBox);
 
   // Правая колонка: справка, похожие сайты, поиск на сайтах
   const aside = el('aside', 'aside fade-in');
