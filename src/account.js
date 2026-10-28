@@ -1,5 +1,6 @@
 // Аккаунт Horizon в браузере: вход, регистрация, профиль, номер через Telegram, устройства.
 // Токен входа хранится зашифрованным средствами Windows; пароль в браузере не сохраняется.
+const crypto = require('node:crypto');
 const { EventEmitter } = require('node:events');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -44,6 +45,26 @@ class Account extends EventEmitter {
 
   device() {
     return `Horizon · ${process.platform === 'darwin' ? 'Mac' : 'Windows'} · ${os.hostname()}`;
+  }
+
+  // Постоянный номер этого компьютера: повторный вход заменяет его прежний сеанс,
+  // и в «Устройствах» один компьютер не появляется дважды.
+  deviceId() {
+    if (this.cachedDeviceId) return this.cachedDeviceId;
+    const file = path.join(path.dirname(this.file), 'device-id');
+    try {
+      const saved = fs.readFileSync(file, 'utf8').trim();
+      if (/^[a-f0-9-]{36}$/.test(saved)) return (this.cachedDeviceId = saved);
+    } catch {
+      // Ещё нет — создаём.
+    }
+    this.cachedDeviceId = crypto.randomUUID();
+    try {
+      fs.writeFileSync(file, this.cachedDeviceId);
+    } catch {
+      // Не записался — номер живёт до перезапуска.
+    }
+    return this.cachedDeviceId;
   }
 
   async request(method, route, body, { auth = false } = {}) {
@@ -92,7 +113,7 @@ class Account extends EventEmitter {
 
   // Без почтового сервиса сервер сразу входит в аккаунт; с почтой — просит код.
   async register(email, password, name, birthDate) {
-    return this.accept(await this.request('POST', '/api/auth/register', { email, password, name, birthDate, device: this.device() }));
+    return this.accept(await this.request('POST', '/api/auth/register', { email, password, name, birthDate, device: this.device(), deviceId: this.deviceId() }));
   }
 
   async setBirthDate(birthDate) {
@@ -109,7 +130,7 @@ class Account extends EventEmitter {
   }
 
   async verifyEmail(email, code) {
-    return this.accept(await this.request('POST', '/api/auth/verify-email', { email, code, device: this.device() }));
+    return this.accept(await this.request('POST', '/api/auth/verify-email', { email, code, device: this.device(), deviceId: this.deviceId() }));
   }
 
   resend(email) {
@@ -117,7 +138,7 @@ class Account extends EventEmitter {
   }
 
   async login(email, password) {
-    return this.accept(await this.request('POST', '/api/auth/login', { email, password, device: this.device() }));
+    return this.accept(await this.request('POST', '/api/auth/login', { email, password, device: this.device(), deviceId: this.deviceId() }));
   }
 
   forgot(email) {
@@ -125,7 +146,7 @@ class Account extends EventEmitter {
   }
 
   async reset(email, code, password) {
-    return this.accept(await this.request('POST', '/api/auth/reset', { email, code, password, device: this.device() }));
+    return this.accept(await this.request('POST', '/api/auth/reset', { email, code, password, device: this.device(), deviceId: this.deviceId() }));
   }
 
   async logout() {

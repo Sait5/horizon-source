@@ -144,13 +144,26 @@ function createApp({ store, env }) {
     await store.del(key);
   }
 
-  async function createSession(user, device, ip) {
+  // Новый вход с того же компьютера заменяет его прежний сеанс, а не добавляет ещё одно «устройство».
+  // Компьютер узнаётся по постоянному номеру (deviceId); у старых сеансов без номера — по названию.
+  async function createSession(user, body, ip) {
+    const device = String((body && body.device) || 'Horizon').slice(0, 100);
+    const rawId = String((body && body.deviceId) || '');
+    const deviceId = /^[a-f0-9-]{16,64}$/i.test(rawId) ? rawId : null;
     const token = sec.newToken();
     const hash = sec.sha256(token);
-    await store.set(`session:${hash}`, { userId: user.id, device: String(device || 'Horizon').slice(0, 100), created: Date.now(), lastSeen: Date.now(), ip }, SESSION_TTL);
     const list = (await store.get(`sessions:${user.id}`)) || [];
-    list.push(hash);
-    await store.set(`sessions:${user.id}`, list.slice(-30));
+    const keep = [];
+    for (const h of list) {
+      const old = await store.get(`session:${h}`);
+      if (!old) continue;
+      const sameDevice = Boolean(deviceId) && (old.deviceId === deviceId || (!old.deviceId && old.device === device));
+      if (sameDevice) await store.del(`session:${h}`);
+      else keep.push(h);
+    }
+    await store.set(`session:${hash}`, { userId: user.id, device, deviceId, created: Date.now(), lastSeen: Date.now(), ip }, SESSION_TTL);
+    keep.push(hash);
+    await store.set(`sessions:${user.id}`, keep.slice(-30));
     return token;
   }
 
@@ -195,7 +208,7 @@ function createApp({ store, env }) {
       Object.assign(user, { name, birthDate, passHash: sec.hashPassword(body.password), emailVerified: false });
       await saveUser(user);
       await store.set(`email:${email}`, user.id);
-      if (!verifyEmail) return { token: await createSession(user, body.device, ip), user: publicUser(user, env) };
+      if (!verifyEmail) return { token: await createSession(user, body, ip), user: publicUser(user, env) };
       return { needCode: true, ...devCode(await sendEmailCode(email, 'verify')) };
     },
 
@@ -207,7 +220,7 @@ function createApp({ store, env }) {
       await checkEmailCode(email, 'verify', body.code);
       user.emailVerified = true;
       await saveUser(user);
-      return { token: await createSession(user, body.device, ip), user: publicUser(user, env) };
+      return { token: await createSession(user, body, ip), user: publicUser(user, env) };
     },
 
     'POST /api/auth/resend': async ({ body, ip }) => {
@@ -230,7 +243,7 @@ function createApp({ store, env }) {
       if (!user.emailVerified && verifyEmail) {
         return { needCode: true, ...devCode(await sendEmailCode(email, 'verify')) };
       }
-      return { token: await createSession(user, body.device, ip), user: publicUser(user, env) };
+      return { token: await createSession(user, body, ip), user: publicUser(user, env) };
     },
 
     'POST /api/auth/forgot': async ({ body, ip }) => {
@@ -258,7 +271,7 @@ function createApp({ store, env }) {
       if (verifyEmail) user.emailVerified = true; // код пришёл на почту — значит, она настоящая
       await saveUser(user);
       await dropSessions(user.id); // после сброса пароля все старые сеансы завершаются
-      return { token: await createSession(user, body.device, ip), user: publicUser(user, env) };
+      return { token: await createSession(user, body, ip), user: publicUser(user, env) };
     },
 
     'POST /api/auth/logout': async ({ headers }) => {

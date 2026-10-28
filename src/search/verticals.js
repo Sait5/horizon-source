@@ -59,6 +59,9 @@ const STEMS = [
   ['батл', 'battle'], ['гейм', 'game'], ['плей', 'play'], ['стейк', 'steak'], ['лаки', 'lucky'], ['фарм', 'farm'],
   ['чек', 'check'], ['шоп', 'shop'], ['хаб', 'hub'], ['бокс', 'box'], ['ган', 'gun'], ['вин', 'win'], ['фаст', 'fast'],
   ['кс', 'cs'], ['бет', 'bet'], ['топ', 'top'], ['лайв', 'live'], ['стор', 'store'],
+  ['булл', 'bull'], ['бул', 'bull'], ['хант', 'hunt'], ['клаб', 'club'], ['кэш', 'cash'], ['кеш', 'cash'], ['гуд', 'good'],
+  ['рейн', 'rain'], ['мани', 'money'], ['изи', 'easy'], ['фортун', 'fortune'], ['кинг', 'king'], ['стар', 'star'],
+  ['голд', 'gold'], ['фри', 'free'], ['джек', 'jack'], ['пот', 'pot'], ['ролл', 'roll'], ['рол', 'roll'], ['спин', 'spin'],
 ];
 const ENDINGS = [['ер', 'er'], ['еры', 'ers'], ['ы', 's'], ['с', 's'], ['', '']];
 function englishWord(word) {
@@ -96,14 +99,16 @@ const PROTECTION_TITLE =/just a moment|attention required|access denied|forbidde
 const FOREIGN_LOCALES = new Set(['zh', 'hi', 'he', 'th', 'ja', 'ko', 'ar', 'de', 'fr', 'es', 'it', 'pt', 'pl', 'tr', 'vi', 'id', 'fa', 'nl', 'sv', 'ro', 'hu', 'el', 'bn', 'ms', 'zh-cn', 'zh-tw', 'pt-br', 'es-es', 'fr-fr', 'de-de', 'ja-jp', 'ko-kr']);
 
 // Возможные адреса сайта по словам запроса: «market csgo» → market.csgo.com, csgo.market, marketcsgo.com…
-const TLDS = ['com', 'ru', 'net', 'gg', 'io', 'org', 'pro', 'one', 'me', 'fun'];
+// Зон много: у игровых и прочих сайтов адреса бывают какие угодно (bulldrop.mobi, caser.one).
+// Сначала все они проверяются быстрым DNS-запросом, открываются только существующие.
+const TLDS = ['com', 'ru', 'gg', 'io', 'net', 'mobi', 'one', 'me', 'pro', 'org', 'cc', 'fun', 'club', 'vip', 'win', 'app', 'games', 'live', 'top', 'xyz', 'site', 'online', 'co', 'in', 'to', 'su', 'bet', 'tv', 'biz', 'info', 'world', 'store'];
 const TLD_WORDS = new Set(['market', 'shop', 'store', 'games', 'game', 'live', 'pro', 'net', 'org', 'io', 'gg', 'ru', 'com', 'app', 'online', 'site', 'club', 'fun', 'top', 'win', 'bet', 'case', 'cases']);
 function guessHosts(query) {
   const words = latin(query).split(/[^a-z0-9]+/).filter((w) => w.length >= 2).slice(0, 3);
   if (!words.length || words.join('').length < 4) return [];
   const hosts = new Set();
   const joined = words.join('');
-  for (const tld of TLDS.slice(0, words.length === 1 ? 10 : 3)) hosts.add(`${joined}.${tld}`);
+  for (const tld of TLDS.slice(0, words.length === 1 ? TLDS.length : 12)) hosts.add(`${joined}.${tld}`);
   if (words.length === 2) {
     const [a, b] = words;
     hosts.add(`${a}-${b}.com`);
@@ -112,11 +117,12 @@ function guessHosts(query) {
     if (TLD_WORDS.has(a)) hosts.add(`${b}.${a}`);
     if (TLD_WORDS.has(b)) hosts.add(`${a}.${b}`);
   }
-  return [...hosts].slice(0, 14);
+  return [...hosts];
 }
 
-// fetchJson — запрос JSON; probe(url) → { url, title } если сайт открывается, иначе null.
-function createVerticals(fetchJson, probe = null) {
+// fetchJson — запрос JSON; probe(url) → { url, title } если сайт открывается, иначе null;
+// resolve(host) → список IP или null (быстрая проверка, есть ли такой домен).
+function createVerticals(fetchJson, probe = null, resolve = null) {
   const cache = new Map();
   async function cached(key, fn) {
     const hit = cache.get(key);
@@ -382,7 +388,26 @@ function createVerticals(fetchJson, probe = null) {
     if (!probe) return [];
     return cached(`guess:${query}`, async () => {
       const en = english(query);
-      const hosts = [...new Set([...guessHosts(query), ...(en ? guessHosts(en) : [])])].slice(0, 24);
+      // Варианты чередуются (caser.com, keyser.com, caser.ru, keyser.ru…), чтобы один не вытеснил другой.
+      const lists = [en ? guessHosts(en) : [], guessHosts(query)];
+      const mixed = [];
+      for (let i = 0; i < Math.max(lists[0].length, lists[1].length); i++) mixed.push(lists[0][i], lists[1][i]);
+      let hosts = [...new Set(mixed.filter(Boolean))];
+      if (resolve) {
+        // Быстрый отсев через DNS: открываем только существующие адреса.
+        // По 8 запросов одновременно: на десятки сразу DNS-серверы отвечают с задержкой или не отвечают.
+        const ips = new Array(hosts.length).fill(null);
+        let nextDns = 0;
+        const dnsWorker = async () => {
+          while (nextDns < hosts.length) {
+            const i = nextDns++;
+            ips[i] = await Promise.race([resolve(hosts[i]).catch(() => null), new Promise((r) => setTimeout(() => r(null), 3000))]);
+          }
+        };
+        await Promise.all(Array.from({ length: 8 }, dnsWorker));
+        hosts = hosts.filter((h, i) => ips[i] && ips[i].length);
+      }
+      hosts = hosts.slice(0, 18);
       const found = new Array(hosts.length).fill(null);
       let next = 0;
       const worker = async () => {
@@ -397,7 +422,7 @@ function createVerticals(fetchJson, probe = null) {
       const parked = (r, i) => {
         const name = hosts[i].split('.')[0];
         const finalHost = new URL(r.url).hostname.toLowerCase();
-        return !finalHost.includes(name) || /for sale|is parked|buy this domain|домен продаётся|домен продается|купить домен|parking|hosted by|suspended|coming soon|under construction|default page|welcome to nginx|index of \/|this domain|домен припаркован|сайт в разработке|сайт временно/i.test(r.title);
+        return !finalHost.includes(name) || /for sale|is parked|buy this domain|домен продаётся|домен продается|купить домен|parking|hosted by|suspended|coming soon|under construction|default page|welcome to nginx|index of \/|this domain|домен припаркован|сайт в разработке|сайт временно|домен зарегистрирован|domain registered|reg.ru|регистратор/i.test(r.title);
       };
       // Выше — сайты с настоящим названием, где есть слово запроса; домены без названия — в конце, не больше двух.
       const wordsOf = (v) => String(v || '').toLowerCase().split(/[^a-zа-яё0-9]+/).filter((w) => w.length >= 3);

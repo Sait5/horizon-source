@@ -19,6 +19,7 @@ const {
 } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
+const dns = require('node:dns').promises;
 const { pathToFileURL } = require('node:url');
 const { Vpn } = require('./vpn');
 const { Vault } = require('./vault/vault');
@@ -46,6 +47,10 @@ app.setAppUserModelId('app.horizon.browser');
 // Вход по ключам доступа (passkey / WebAuthn) выключен: иначе Google и другие сайты открывают окно
 // «Безопасность Windows» с просьбой вставить USB-ключ. Без него сайты просто спрашивают пароль.
 app.commandLine.appendSwitch('disable-blink-features', 'WebAuth');
+// Один и тот же User-Agent везде — и у страниц, и у их фоновых обработчиков (service worker).
+// Раньше фоновые запросы уходили с «Horizon/… Electron/…», а страницы — как Chrome: защита сайтов
+// (Market CSGO и др.) видела «два разных браузера» в одной сессии и сбрасывала вход.
+app.userAgentFallback = app.userAgentFallback.replace(/\s(horizon|Electron)\/\S+/gi, '');
 let lastFind = '';
 
 protocol.registerSchemesAsPrivileged([
@@ -241,7 +246,9 @@ function probeSite(url) {
   });
 }
 
-const verticals = createVerticals(async (url) => JSON.parse(await fetchViaBrowser(url, 9000)), probeSite);
+// Есть ли домен — быстрым DNS-запросом, до того как открывать угаданный адрес.
+const resolveHost = (host) => dns.resolve4(host).catch(() => dns.resolve6(host)).catch(() => null);
+const verticals = createVerticals(async (url) => JSON.parse(await fetchViaBrowser(url, 9000)), probeSite, resolveHost);
 
 // Данные для страницы поиска — общий модуль (тот же, что у сайта-приложения для телефона).
 const buildSearchPage = createSearchPageData({ verticals, sources: () => suggestSources(), strict: () => kidsMode() });
