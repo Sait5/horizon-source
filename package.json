@@ -1,7 +1,7 @@
 {
   "name": "horizon",
   "productName": "Horizon",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Браузер Horizon для Windows",
   "author": "Horizon",
   "main": "src/main.js",

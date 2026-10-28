@@ -98,6 +98,33 @@ function iconButton(name, title, onClick, cls = '') {
   return h('button', { class: `icon-btn ${cls}`, title, 'aria-label': title, onClick }, icon(name));
 }
 
+// Дата рождения тремя списками: день, месяц, год — понятнее и надёжнее календаря.
+const MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+function birthPicker(name) {
+  const [y0, m0, d0] = String(form[name] || '').split('-');
+  const sync = () => {
+    const y = form[name + 'Y'];
+    const m = form[name + 'M'];
+    const d = form[name + 'D'];
+    form[name] = y && m && d ? `${y}-${m}-${d}` : '';
+  };
+  const select = (part, placeholder, options, initial) => {
+    if (form[name + part] === undefined && initial) form[name + part] = initial;
+    const el = h('select', { class: 'input birth-part', 'aria-label': placeholder, onChange: (e) => { form[name + part] = e.target.value; sync(); } },
+      h('option', { value: '' }, placeholder),
+      options.map(([value, label]) => h('option', { value, selected: form[name + part] === value ? true : null }, label)));
+    return el;
+  };
+  const pad = (n) => String(n).padStart(2, '0');
+  const year = new Date().getFullYear();
+  const box = h('div', { class: 'birth' },
+    select('D', 'День', Array.from({ length: 31 }, (_, i) => [pad(i + 1), String(i + 1)]), d0),
+    select('M', 'Месяц', MONTHS.map((m, i) => [pad(i + 1), m]), m0),
+    select('Y', 'Год', Array.from({ length: 110 }, (_, i) => [String(year - 5 - i), String(year - 5 - i)]), y0));
+  sync();
+  return box;
+}
+
 function noteEl() {
   return h('div', { class: `note ${note.kind}`, role: 'status' }, note.text);
 }
@@ -119,10 +146,13 @@ function formatBytes(n) {
 
 async function action(fn, okText) {
   busy = true;
-  note = { text: '', kind: '' };
+  // Пока ждём сервер, видно, что идёт работа (кнопки неактивны).
+  note = { text: 'Подождите, отправляю…', kind: '' };
   render();
+  const waiting = note;
   try {
     const result = await fn();
+    if (note === waiting) note = { text: '', kind: '' }; // «Подождите…» убираем, если действие не написало своё
     const text = typeof okText === 'function' ? okText(result) : okText;
     if (text) note = { text, kind: 'ok' };
   } catch (error) {
@@ -934,7 +964,7 @@ function accountAuth() {
         field('accName', { placeholder: 'Имя', autofocus: true }),
         field('accEmail', { placeholder: 'Почта' }),
         h('label', { class: 'muted small', style: 'text-align:left;margin-bottom:-4px' }, 'Дата рождения — до 18 лет включается детский режим'),
-        field('accBirth', { type: 'date' }),
+        birthPicker('accBirth'),
         field('accPass', { type: 'password', placeholder: 'Пароль (от 8 символов)' }),
         field('accPass2', { type: 'password', placeholder: 'Повторите пароль', onEnter: submit }),
       ],
@@ -1188,7 +1218,7 @@ function accountProfile() {
       ? h('div', { class: 'card' },
           h('div', { class: 'card-head' }, icon('user'), h('strong', null, 'Укажите дату рождения')),
           h('p', { class: 'muted small' }, 'Нужна один раз: до 18 лет включается детский режим. Изменить дату потом нельзя.'),
-          h('div', { class: 'row' }, field('accBirthSet', { type: 'date' }), button('Сохранить', () => action(async () => {
+          h('div', { class: 'row' }, birthPicker('accBirthSet'), button('Сохранить', () => action(async () => {
             if (!form.accBirthSet) throw new Error('Укажите дату рождения');
             accountState = await api.call('account.setBirthDate', form.accBirthSet);
           }, 'Дата рождения сохранена'), { kind: 'primary' })))

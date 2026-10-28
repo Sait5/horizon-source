@@ -426,7 +426,7 @@ function applyWebRtcPolicy(wc) {
 }
 
 function createTab(url = START_URL, { focusAddressBar = true, activate = true } = {}) {
-  trace('вкладка: создание');
+  trace(`вкладка: создание ${url}`);
   const id = nextId++;
   const view = new WebContentsView({
     webPreferences: {
@@ -489,6 +489,12 @@ function createTab(url = START_URL, { focusAddressBar = true, activate = true } 
   wc.on('will-navigate', (event, target) => {
     // Страницу ошибки открывает только сам браузер: сайт не может показать поддельную «ошибку Horizon».
     if (!isAllowedUrl(target) || target.startsWith(ERROR_PAGE)) event.preventDefault();
+  });
+  // На страницах входа Google и сама страница видит Firefox (см. firefoxUserAgent).
+  wc.on('did-start-navigation', (details) => {
+    if (!details.isMainFrame || details.isSameDocument) return;
+    const want = GOOGLE_SIGNIN.test(details.url) ? firefoxUserAgent() : browserSession.getUserAgent();
+    if (wc.getUserAgent() !== want) wc.setUserAgent(want);
   });
   wc.on('did-finish-load', () => {
     if (wc.getURL().startsWith(START_URL)) wc.send(id === activeId ? 'horizon:shown' : 'horizon:hidden');
@@ -1343,11 +1349,26 @@ function createWindow() {
   win.loadFile(path.join(__dirname, 'ui', 'index.html'));
 }
 
+// Firefox текущей версии (выходит раз в 4 недели; 144-я — 14 октября 2025), под свою систему.
+function firefoxUserAgent() {
+  const version = 144 + Math.max(0, Math.floor((Date.now() - Date.UTC(2025, 9, 14)) / (28 * 86400000)));
+  const system = process.platform === 'darwin' ? 'Macintosh; Intel Mac OS X 10.15' : 'Windows NT 10.0; Win64; x64';
+  return `Mozilla/5.0 (${system}; rv:${version}.0) Gecko/20100101 Firefox/${version}.0`;
+}
+const GOOGLE_SIGNIN = /^https:\/\/accounts\.google\.com\//i;
+
 function setupSession() {
   browserSession = session.fromPartition('persist:horizon');
   browserSession.protocol.handle('horizon', handleInternal);
   // Убираем из User-Agent пометки Electron, чтобы сайты видели обычный Chromium.
   browserSession.setUserAgent(browserSession.getUserAgent().replace(/\s(horizon|Electron)\/\S+/gi, ''));
+  // Вход в Google (по решению владельца): на страницах входа Horizon представляется Firefox,
+  // иначе Google не пускает браузеры на Electron («Возможно, этот браузер небезопасен»).
+  browserSession.webRequest.onBeforeSendHeaders({ urls: ['https://accounts.google.com/*'] }, (details, callback) => {
+    const headers = { ...details.requestHeaders, 'User-Agent': firefoxUserAgent() };
+    for (const key of Object.keys(headers)) if (/^sec-ch-ua/i.test(key)) delete headers[key];
+    callback({ requestHeaders: headers });
+  });
   // Камера, микрофон, геолокация и уведомления пока запрещены: запрос разрешений появится позже.
   browserSession.setPermissionRequestHandler((_wc, permission, callback) => {
     callback(permission === 'fullscreen' || permission === 'clipboard-sanitized-write');
@@ -1574,7 +1595,7 @@ async function selfTest() {
 }
 
 app.whenReady().then(async () => {
-  trace('готов');
+  trace(`готов, профиль: ${app.getPath('userData')}`);
   profile = new Profile(app, safeStorage);
   profile.load();
   trace('профиль');

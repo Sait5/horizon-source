@@ -43,7 +43,7 @@ class Account extends EventEmitter {
   }
 
   device() {
-    return `Horizon · Windows · ${os.hostname()}`;
+    return `Horizon · ${process.platform === 'darwin' ? 'Mac' : 'Windows'} · ${os.hostname()}`;
   }
 
   async request(method, route, body, { auth = false } = {}) {
@@ -55,9 +55,14 @@ class Account extends EventEmitter {
         headers: { 'Content-Type': 'application/json', ...(auth && this.token ? { Authorization: `Bearer ${this.token}` } : {}) },
         body: method === 'GET' ? undefined : JSON.stringify(body || {}),
         cache: 'no-store',
+        // Сервер не ответил за 25 секунд — не висим бесконечно, а говорим об этом.
+        signal: AbortSignal.timeout(25000),
       });
-    } catch {
-      throw new Error('Нет связи с сервером аккаунтов');
+    } catch (error) {
+      if (error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
+        throw new Error('Сервер аккаунтов не ответил за 25 секунд. Проверьте интернет (или выключите VPN) и попробуйте ещё раз.');
+      }
+      throw new Error('Нет связи с сервером аккаунтов. Проверьте интернет или VPN.');
     }
     let data = {};
     try {

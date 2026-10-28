@@ -1,20 +1,9 @@
 // Скрипт вкладки: находит формы входа и подставляет пароль по команде браузера.
 // Странице ничего не передаётся: у неё нет доступа к этому скрипту и к сейфу.
-const { ipcRenderer, contextBridge } = require('electron');
+const { ipcRenderer } = require('electron');
 
-// Вход по ключу доступа (passkey) выключен: запрос сразу отклоняется, и окно «Безопасность Windows»
-// с просьбой вставить USB-ключ не появляется. Сайт в ответ предлагает обычный вход по паролю.
-contextBridge.executeInMainWorld({
-  func: () => {
-    const container = navigator.credentials;
-    if (!container) return;
-    const deny = () => Promise.reject(new DOMException('Вход по ключу доступа отключён в Horizon', 'NotAllowedError'));
-    const get = container.get.bind(container);
-    const create = container.create.bind(container);
-    container.get = (options) => (options && options.publicKey ? deny() : get(options));
-    container.create = (options) => (options && options.publicKey ? deny() : create(options));
-  },
-});
+// Вход по ключу доступа (passkey) выключен самим движком (ключ запуска disable-blink-features=WebAuth):
+// окно «Безопасность Windows» с USB-ключом не появляется, а функции страниц не подменяются.
 
 const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
 const USER_TYPES = new Set(['text', 'email', 'tel', '']);

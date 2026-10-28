@@ -849,3 +849,16 @@ body.modal .backdrop {
     transition: none !important;
   }
 }
+/* Дата рождения: три списка в ряд */
+.birth {
+  display: grid;
+  grid-template-columns: 0.8fr 1.5fr 1fr;
+  gap: 8px;
+}
+
+.birth .birth-part {
+  width: 100%;
+  min-width: 0;
+  padding-right: 6px;
+  cursor: pointer;
+}
