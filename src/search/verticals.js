@@ -40,7 +40,53 @@ function parseConversion(text) {
   return from && to ? { amount: parseFloat(m[1].replace(',', '.')), from, to } : null;
 }
 
-function createVerticals(fetchJson) {
+// Кириллица латиницей — для поиска адресов («кейсер» → keyser) и англоязычного индекса.
+const LATIN = { а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ё: 'e', ж: 'zh', з: 'z', и: 'i', й: 'y', к: 'k', л: 'l', м: 'm', н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't', у: 'u', ф: 'f', х: 'h', ц: 'ts', ч: 'ch', ш: 'sh', щ: 'sch', ъ: '', ы: 'y', ь: '', э: 'e', ю: 'yu', я: 'ya' };
+const latin = (text) => [...String(text).toLowerCase()].map((ch) => (LATIN[ch] !== undefined ? LATIN[ch] : ch)).join('');
+
+// Русские слова, которые на сайтах (особенно игровых) пишут по-английски: «кейсы кс2» → «cases cs2».
+const ENGLISH = {
+  кс: 'cs', кс2: 'cs2', ксго: 'csgo', го: 'go', кейс: 'case', кейсы: 'cases', кейсов: 'cases', открытие: 'opening', открыть: 'open',
+  маркет: 'market', скин: 'skin', скины: 'skins', скинов: 'skins', апгрейд: 'upgrade', апгрейдер: 'upgrader', апгрейды: 'upgrade',
+  игра: 'game', игры: 'games', игр: 'games', рулетка: 'roulette', трейд: 'trade', обмен: 'trade', батл: 'battle', дроп: 'drop',
+  дота: 'dota', майнкрафт: 'minecraft', роблокс: 'roblox', фортнайт: 'fortnite', стим: 'steam', варфейс: 'warface', танки: 'tanks',
+  бесплатно: 'free', бесплатные: 'free', онлайн: 'online', магазин: 'shop', яндекс: 'yandex', новости: 'news', погода: 'weather',
+  музыка: 'music', фильмы: 'movies', кино: 'movies', аниме: 'anime', карты: 'maps', почта: 'mail', переводчик: 'translate', сайт: '', сайты: '',
+};
+function english(query) {
+  const words = String(query).toLowerCase().split(/\s+/).filter(Boolean);
+  if (!words.some((w) => ENGLISH[w] !== undefined)) return null;
+  return words.map((w) => (ENGLISH[w] !== undefined ? ENGLISH[w] : latin(w))).filter(Boolean).join(' ');
+}
+
+// Заголовки страниц защиты от роботов и ошибок
+const PROTECTION_TITLE = /just a moment|attention required|access denied|forbidden|^40\d|^50\d|ddos-guard|checking your browser|капча|captcha|are you a robot|вы не робот/i;
+
+// Страницы на чужих языках («yandex.com/games/zh/…») русскому читателю не нужны.
+const FOREIGN_LOCALES = new Set(['zh', 'hi', 'he', 'th', 'ja', 'ko', 'ar', 'de', 'fr', 'es', 'it', 'pt', 'pl', 'tr', 'vi', 'id', 'fa', 'nl', 'sv', 'ro', 'hu', 'el', 'bn', 'ms', 'zh-cn', 'zh-tw', 'pt-br', 'es-es', 'fr-fr', 'de-de', 'ja-jp', 'ko-kr']);
+
+// Возможные адреса сайта по словам запроса: «market csgo» → market.csgo.com, csgo.market, marketcsgo.com…
+const TLDS = ['com', 'ru', 'net', 'gg', 'io', 'org', 'pro'];
+const TLD_WORDS = new Set(['market', 'shop', 'store', 'games', 'game', 'live', 'pro', 'net', 'org', 'io', 'gg', 'ru', 'com', 'app', 'online', 'site', 'club', 'fun', 'top', 'win', 'bet', 'case', 'cases']);
+function guessHosts(query) {
+  const words = latin(query).split(/[^a-z0-9]+/).filter((w) => w.length >= 2).slice(0, 3);
+  if (!words.length || words.join('').length < 4) return [];
+  const hosts = new Set();
+  const joined = words.join('');
+  for (const tld of TLDS.slice(0, words.length === 1 ? 7 : 3)) hosts.add(`${joined}.${tld}`);
+  if (words.length === 2) {
+    const [a, b] = words;
+    hosts.add(`${a}-${b}.com`);
+    hosts.add(`${a}.${b}.com`);
+    hosts.add(`${b}.${a}.com`);
+    if (TLD_WORDS.has(a)) hosts.add(`${b}.${a}`);
+    if (TLD_WORDS.has(b)) hosts.add(`${a}.${b}`);
+  }
+  return [...hosts].slice(0, 12);
+}
+
+// fetchJson — запрос JSON; probe(url) → { url, title } если сайт открывается, иначе null.
+function createVerticals(fetchJson, probe = null) {
   const cache = new Map();
   async function cached(key, fn) {
     const hit = cache.get(key);
@@ -234,7 +280,99 @@ function createVerticals(fetchJson) {
     return result;
   }
 
-  return { wikiSearch, wikiSummary, spell, images, videos, places, finance, clearCache: () => cache.clear() };
+  // Сайты из интернета: открытый поисковик Mwmbl (бесплатно, без ключей). Для русских запросов —
+  // ещё и латиницей, потому что его индекс в основном англоязычный.
+  // Варианты запроса для открытого индекса: как написано, латиницей, по-английски и в обратном порядке слов
+  // («market csgo» индекс не знает, а «csgo market» — знает).
+  function variants(query) {
+    const swap = (v) => {
+      const words = v.split(/\s+/);
+      return words.length === 2 ? `${words[1]} ${words[0]}` : null;
+    };
+    const en = english(query);
+    // Самые полезные — первыми: английский вариант находит игровые сайты лучше всего.
+    const out = [query];
+    if (en) out.push(en, swap(en), en.replace(/\b(cases|skins|games)\b/g, (w) => w.slice(0, -1)));
+    if (/[а-яё]/i.test(query)) out.push(latin(query));
+    out.push(swap(query));
+    return [...new Set(out.filter(Boolean))].slice(0, 6);
+  }
+
+  async function web(query) {
+    return cached(`web:${query}`, async () => {
+      const lists = await Promise.allSettled(variants(query).map((v) => fetchJson(`https://api.mwmbl.org/search?s=${enc(v)}`)));
+      const tokens = [...new Set(variants(query).join(' ').toLowerCase().split(/[^a-zа-яё0-9]+/).filter((w) => w.length >= 2))];
+      const seen = new Set();
+      const perHost = new Map();
+      const items = [];
+      const text = (parts) => (Array.isArray(parts) ? parts.map((p) => p.value).join('') : String(parts || '')).replace(/\s+/g, ' ').trim();
+      lists.forEach((list, order) => {
+        if (list.status !== 'fulfilled' || !Array.isArray(list.value)) return;
+        list.value.forEach((r, rank) => {
+          let u;
+          try {
+            u = new URL(r.url);
+          } catch {
+            return;
+          }
+          if (!/^https?:$/.test(u.protocol)) return;
+          const segments = u.pathname.toLowerCase().split('/').filter(Boolean);
+          if (segments.some((p) => FOREIGN_LOCALES.has(p))) return;
+          const host = u.hostname.toLowerCase().replace(/^www\./, '');
+          // SEO-зеркала чужих сайтов: csgocases.com.statvoo.com
+          if (/\.(com|net|org|ru|io|gg|pro|shop)$/.test(host.split('.').slice(0, -2).join('.'))) return;
+          const key = host + u.pathname.replace(/\/$/, '') + u.search;
+          if (seen.has(key)) return;
+          seen.add(key);
+          // С одного сайта — не больше двух ссылок, чтобы выдача не состояла из одного Яндекса.
+          const count = perHost.get(host) || 0;
+          if (count >= 2) return;
+          perHost.set(host, count + 1);
+          // Заголовок страницы проверки на робота («Ой, Капча!») — не название сайта.
+          const rawTitle = text(r.title);
+          const title = !rawTitle || PROTECTION_TITLE.test(rawTitle) ? host : rawTitle;
+          // На русский запрос — без копий тех же страниц на украинском («Ігри… На Яндекс Игры»).
+          if (/[а-яё]/i.test(query) && /[іїєґ]/i.test(title)) return;
+          // Выше — сайты, в адресе которых есть слово запроса, и главные страницы сайтов.
+          const score = (tokens.some((t) => host.includes(t)) ? 30 : 0) + (segments.length === 0 ? 15 : 0) + (tokens.some((t) => title.toLowerCase().includes(t)) ? 5 : 0) - rank - order * 2;
+          items.push({ title, url: r.url, host, snippet: text(r.extract), source: 'web', score });
+        });
+      });
+      return items.sort((x, y) => y.score - x.score).slice(0, 60).map(({ score, ...item }) => item);
+    });
+  }
+
+  // Сайты, найденные по адресу: проверяем, открываются ли угаданные адреса (по 6 одновременно).
+  async function guess(query) {
+    if (!probe) return [];
+    return cached(`guess:${query}`, async () => {
+      const en = english(query);
+      const hosts = [...new Set([...guessHosts(query), ...(en ? guessHosts(en) : [])])].slice(0, 14);
+      const found = new Array(hosts.length).fill(null);
+      let next = 0;
+      const worker = async () => {
+        while (next < hosts.length) {
+          const i = next++;
+          found[i] = await probe(`https://${hosts[i]}/`).catch(() => null);
+        }
+      };
+      await Promise.all(Array.from({ length: 6 }, worker));
+      const seen = new Set();
+      // Домены на продажу: переадресация на чужой сайт (upgrader.org → atom.com) или «domain for sale» в заголовке.
+      const parked = (r, i) => {
+        const name = hosts[i].split('.')[0];
+        const finalHost = new URL(r.url).hostname.toLowerCase();
+        return !finalHost.includes(name) || /for sale|is parked|buy this domain|домен продаётся|домен продается|купить домен|parking/i.test(r.title);
+      };
+      return found
+        .map((r, i) => (r && !parked(r, i) ? r : null))
+        .filter(Boolean)
+        .map((r) => ({ title: r.title || new URL(r.url).hostname, url: r.url, host: new URL(r.url).hostname.replace(/^www\./, ''), snippet: '', source: 'guess' }))
+        .filter((r) => !seen.has(r.host) && seen.add(r.host));
+    });
+  }
+
+  return { wikiSearch, wikiSummary, spell, images, videos, places, finance, web, guess, clearCache: () => cache.clear() };
 }
 
-module.exports = { createVerticals, parseConversion };
+module.exports = { createVerticals, parseConversion, guessHosts, PROTECTION_TITLE };

@@ -27,7 +27,7 @@ const { Account } = require('./account');
 const search = require('./search/suggest');
 const safety = require('./safety');
 const { createSearchPageData } = require('./search/page-data');
-const { createVerticals } = require('./search/verticals');
+const { createVerticals, PROTECTION_TITLE } = require('./search/verticals');
 const { Updater } = require('./updater');
 
 const updater = new Updater();
@@ -187,12 +187,66 @@ function fetchImageViaBrowser(url, timeoutMs = 30000, maxBytes = 40 * 1024 * 102
   });
 }
 
-const verticals = createVerticals(async (url) => JSON.parse(await fetchViaBrowser(url, 9000)));
+// Открывается ли сайт по угаданному адресу (через браузер, с VPN): { url, title } или null за 4 секунды.
+function probeSite(url) {
+  return new Promise((resolve) => {
+    let finalUrl = url;
+    let settled = false;
+    const done = (value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(value);
+    };
+    const request = net.request({ url, session: browserSession, useSessionCookies: false, redirect: 'follow' });
+    request.setHeader('User-Agent', browserSession.getUserAgent());
+    request.on('redirect', (_status, _method, redirectUrl) => (finalUrl = redirectUrl));
+    request.on('login', (authInfo, callback) => {
+      const creds = vpn && vpn.proxyCredentials(authInfo);
+      if (creds) callback(creds.username, creds.password);
+      else callback();
+    });
+    let answered = false;
+    // Сайт ответил, но заголовок долго не приходит — всё равно он есть, просто без названия.
+    const timer = setTimeout(() => {
+      request.abort();
+      done(answered ? { url: finalUrl, title: '' } : null);
+    }, 5000);
+    request.on('response', (response) => {
+      answered = true;
+      // Сайт есть, если он вообще отвечает — даже страницей защиты от роботов (403/503); нет — 404, 410, 5xx.
+      if ([404, 410].includes(response.statusCode) || (response.statusCode >= 500 && response.statusCode !== 503)) {
+        request.abort();
+        return done(null);
+      }
+      let html = '';
+      response.on('data', (chunk) => {
+        html += chunk.toString('utf8');
+        // Заголовок обычно в начале страницы — дальше не читаем.
+        if (html.length > 65536 || /<\/title>/i.test(html)) {
+          request.abort();
+          finish();
+        }
+      });
+      const finish = () => {
+        let title = ((/<title[^>]*>([^<]{1,200})<\/title>/i.exec(html) || [])[1] || '').replace(/\s+/g, ' ').trim();
+        // Заголовки страниц защиты и ошибок — не название сайта
+        if (PROTECTION_TITLE.test(title)) title = '';
+        done({ url: finalUrl, title });
+      };
+      response.on('end', finish);
+    });
+    request.on('error', () => done(null));
+    request.end();
+  });
+}
+
+const verticals = createVerticals(async (url) => JSON.parse(await fetchViaBrowser(url, 9000)), probeSite);
 
 // Данные для страницы поиска — общий модуль (тот же, что у сайта-приложения для телефона).
 const buildSearchPage = createSearchPageData({ verticals, sources: () => suggestSources(), strict: () => kidsMode() });
-function searchPageData(query, tab = 'all', page = 1, exact = false) {
-  return buildSearchPage(query, tab, page, exact, { palette: profile.publicState().palette });
+function searchPageData(query, tab = 'all', page = 1, exact = false, part = null) {
+  return buildSearchPage(query, tab, page, exact, { palette: profile.publicState().palette, part: part === 'web' ? 'web' : null });
 }
 
 // Внутренние страницы читают историю и закладки, поэтому чужие сайты к ним не допускаются.
@@ -295,7 +349,7 @@ async function handleInternal(request) {
     const query = (url.searchParams.get('q') || '').trim().slice(0, 300);
     if (page === 1 && query) profile.addSearch(query);
     try {
-      return Response.json(await searchPageData(query, tab, page, url.searchParams.get('exact') === '1'));
+      return Response.json(await searchPageData(query, tab, page, url.searchParams.get('exact') === '1', url.searchParams.get('part')));
     } catch (error) {
       return Response.json({ query, tab, page, error: error.message }, { status: 500 });
     }

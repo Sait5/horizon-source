@@ -8,7 +8,7 @@ module.exports = async (req, res) => {
   const tab = TABS.includes(text(req.query.tab)) ? text(req.query.tab) : 'all';
   const page = Math.max(1, Math.min(50, Number(text(req.query.page)) || 1));
   try {
-    const data = await searchPageData(query, tab, page, text(req.query.exact) === '1');
+    const data = await searchPageData(query, tab, page, text(req.query.exact) === '1', { part: text(req.query.part) === 'web' ? 'web' : null });
     send(res, 200, webUrls(data), 'public, s-maxage=300, stale-while-revalidate=900');
   } catch (error) {
     send(res, 500, { query, tab, page, error: error.message });

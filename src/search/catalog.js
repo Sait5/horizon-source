@@ -200,6 +200,13 @@ const SITES = [
   { name: 'StopGame', host: 'stopgame.ru', aliases: ['стопгейм'], tags: ['games', 'news'] },
   { name: 'Lichess', host: 'lichess.org', aliases: ['шахматы', 'личесс'], tags: ['games'] },
   { name: 'Chess.com', host: 'chess.com', aliases: ['чесс'], tags: ['games'] },
+  { name: 'Яндекс Игры', host: 'yandex.ru/games', aliases: ['яндекс игры', 'yandex games', 'игры яндекс', 'яндекс игра'], tags: ['games'], search: 'https://yandex.ru/games/search?query={q}' },
+  { name: 'VK Play', host: 'vkplay.ru', aliases: ['вк плей', 'вкплей', 'vk play'], tags: ['games'] },
+  { name: 'Poki', host: 'poki.com/ru', aliases: ['поки'], tags: ['games'] },
+  { name: 'CrazyGames', host: 'crazygames.ru', aliases: ['крейзи геймс', 'crazy games'], tags: ['games'] },
+  { name: 'Market CSGO', host: 'market.csgo.com', aliases: ['маркет кс', 'маркет ксго', 'маркет csgo', 'market csgo', 'csgo market', 'маркет кс2'], tags: ['games', 'shop'] },
+  { name: 'FACEIT', host: 'faceit.com', aliases: ['фейсит', 'фасеит'], tags: ['games'] },
+  { name: 'Мир танков', host: 'tanki.su', aliases: ['мир танков', 'танки', 'lesta'], tags: ['games'] },
   // Банки
   { name: 'Сбербанк', host: 'online.sberbank.ru', aliases: ['сбер', 'сбербанк'], tags: ['banks'] },
   { name: 'Т-Банк', host: 'tbank.ru', aliases: ['тинькофф', 'тбанк', 'т банк', 'tinkoff'], tags: ['banks'] },

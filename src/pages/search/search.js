@@ -115,6 +115,28 @@ function siteResult(site) {
   return item;
 }
 
+async function loadWeb(box, countEl, countText, known, nothingElse) {
+  try {
+    const data = await (await fetch(`/api?q=${encodeURIComponent(query)}&tab=all&page=${pageNo}&part=web${exactParam}`)).json();
+    const web = data.web || [];
+    box.replaceChildren(...web.map(webResult));
+    countEl.textContent = countText(known + web.length);
+    if (!web.length && nothingElse) box.replaceChildren(el('p', 'empty', 'Ничего не нашлось. Попробуйте другие слова или вкладки выше.'));
+  } catch {
+    box.replaceChildren(el('p', 'note', 'Сайты из интернета сейчас не загрузились — обновите страницу.'));
+  }
+}
+
+function webResult(w) {
+  const item = el('article', 'result');
+  const crumb = el('div', 'crumb');
+  crumb.append(favicon(w.host, w.title), el('span', null, w.host));
+  if (w.source === 'guess') crumb.append(el('span', 'badge', 'Сайт по адресу'));
+  item.append(crumb, safeLink(w.url, 'result-title', w.title));
+  if (w.snippet) item.append(el('div', 'result-text', w.snippet));
+  return item;
+}
+
 function wikiResult(w) {
   const item = el('article', 'result');
   const crumb = el('div', 'crumb');
@@ -154,17 +176,25 @@ function renderAll(data) {
     fix.append(document.createTextNode('Исправлена опечатка — показано для «'), el('b', null, data.correction.text), document.createTextNode('». Искать как написано: '), exact);
     left.prepend(fix);
   }
-  left.prepend(el('p', 'count', pageNo === 1 ? `Нашлось ${sites.length} ${plural(sites.length, 'сайт', 'сайта', 'сайтов')} и ${total.toLocaleString('ru-RU')} ${plural(total, 'статья', 'статьи', 'статей')}` : `Страница ${pageNo}`));
+  const countText = (n) => (pageNo === 1 ? `Нашлось ${n} ${plural(n, 'сайт', 'сайта', 'сайтов')} и ${total.toLocaleString('ru-RU')} ${plural(total, 'статья', 'статьи', 'статей')} в Википедии` : `Страница ${pageNo}`);
+  const countEl = el('p', 'count', countText(pageNo === 1 ? sites.length : 0));
+  left.prepend(countEl);
   if (pageNo === 1) {
     sites.forEach((s, i) => {
       if (i === 0 && left.querySelector('.featured')) return;
       left.append(siteResult(s));
     });
   }
-  const wikiItems = (data.wiki && data.wiki.items) || [];
+  // Сайты из интернета догружаются отдельно — сразу после каталога, выше Википедии.
+  const webBox = el('div', 'web-results');
+  webBox.append(el('p', 'note web-loading', 'Ищу сайты в интернете…'));
+  left.append(webBox);
+  const wikiAll = (data.wiki && data.wiki.items) || [];
+  const wikiItems = pageNo === 1 ? wikiAll.slice(0, 3) : wikiAll;
+  if (wikiItems.length) left.append(el('h2', 'section-title wiki-head', 'Из Википедии'));
   for (const w of wikiItems) left.append(wikiResult(w));
   if (data.wiki && data.wiki.error) left.append(el('p', 'note', 'Статьи Википедии сейчас не загрузились — обновите страницу чуть позже.'));
-  if (!sites.length && !wikiItems.length && !(data.quick || []).length) left.append(el('p', 'empty', 'Ничего не нашлось. Попробуйте другие слова или вкладки выше.'));
+  loadWeb(webBox, countEl, countText, pageNo === 1 ? sites.length : 0, !sites.length && !wikiItems.length);
 
   if (data.pages > 1) {
     const pager = el('nav', 'pager');
