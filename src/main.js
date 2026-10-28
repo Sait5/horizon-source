@@ -1558,7 +1558,7 @@ async function selfTest() {
     result.popular = await run(wc, `fetch('/popular.json').then((r) => r.json()).then((l) => l.length)`);
     // Видео волн: доходит ли файл и начинает ли плеер его читать (ждём до 10 секунд)
     result.videoFile = await run(wc, `fetch('/builtin/sunrise.mp4', { headers: { Range: 'bytes=0-99' } }).then((r) => [r.status, r.headers.get('content-type')]).catch((e) => String(e))`);
-    result.videoState = await run(wc, `new Promise((resolve) => { const v = document.getElementById('liveA'); const done = () => resolve({ ready: v.readyState, network: v.networkState, src: v.currentSrc, error: v.error && v.error.message, time: v.currentTime, paused: v.paused, hidden: document.hidden }); if (v.readyState >= 1) return done(); v.addEventListener('loadedmetadata', done, { once: true }); setTimeout(done, 10000); })`);
+    result.videoState = await run(wc, `new Promise((resolve) => { const v = document.getElementById('liveA'); const done = () => resolve({ reduceMotion: matchMedia('(prefers-reduced-motion: reduce)').matches, ready: v.readyState, network: v.networkState, src: v.currentSrc, error: v.error && v.error.message, time: v.currentTime, paused: v.paused, hidden: document.hidden }); if (v.readyState >= 1) return done(); v.addEventListener('loadedmetadata', done, { once: true }); setTimeout(done, 10000); })`);
   }
   if (win) result.platform = await run(win.webContents, 'document.documentElement.dataset.platform');
   for (const [name, target] of [['start', wc], ['ui', win && win.webContents]]) {
