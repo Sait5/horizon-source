@@ -47,7 +47,13 @@ function createSearchPageData({ verticals, sources = () => ({}), strict = () => 
       const knownHosts = new Set(guessed.map((g) => g.host));
       const seenUrls = new Set();
       const webList = webAll.filter((w) => !knownHosts.has(w.host) && !seenUrls.has(w.url) && seenUrls.add(w.url));
-      const web = [...(page === 1 ? guessed : []), ...webList.slice((page - 1) * PER_PAGE, page * PER_PAGE)];
+      // Порядок первой страницы: известные сайты по адресу (популярные или с названием как в запросе),
+      // затем лучшие сайты из индекса, затем остальные угаданные адреса — малоизвестный домен
+      // не стоит выше популярного skinport.com на «скины кс2».
+      const pageWeb = webList.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+      const web = page === 1
+        ? [...guessed.filter((g) => g.strong), ...pageWeb.slice(0, 3), ...guessed.filter((g) => !g.strong), ...pageWeb.slice(3)]
+        : pageWeb;
       return { ...base, text, web, webPages: Math.min(10, Math.ceil(webList.length / PER_PAGE)) };
     }
     // Обычные слова с опечаткой («масква») орфография не подменяет, а только предлагает:

@@ -78,7 +78,7 @@ fs.writeFileSync(path.join(PUB, 'default-state.json'), JSON.stringify({ appearan
 
 // Модули поиска для серверных функций
 fs.mkdirSync(path.join(LIB, 'search'), { recursive: true });
-for (const f of ['catalog.js', 'suggest.js', 'descriptions.js', 'verticals.js', 'page-data.js']) fs.copyFileSync(path.join(SRC, 'search', f), path.join(LIB, 'search', f));
+for (const f of ['catalog.js', 'suggest.js', 'descriptions.js', 'verticals.js', 'page-data.js', 'popularity.js', 'popular-domains.gz']) fs.copyFileSync(path.join(SRC, 'search', f), path.join(LIB, 'search', f));
 fs.copyFileSync(path.join(SRC, 'safety.js'), path.join(LIB, 'safety.js'));
 
 console.log('Сайт собран в web/public');

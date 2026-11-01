@@ -1,6 +1,7 @@
 // Вкладки поиска Horizon: статьи, картинки, видео, карты и финансы из открытых бесплатных источников.
 // Все запросы идут через сеанс браузера (с VPN, если он включён). Взрослый контент отфильтровывается.
 const enc = encodeURIComponent;
+const popularity = require('./popularity');
 
 function strip(html) {
   return String(html || '')
@@ -362,6 +363,8 @@ function createVerticals(fetchJson, probe = null, resolve = null) {
           // Спам на чужих поддоменах: gifuwq7100.nordiskmytologi.se, troy03bp9.ssnblog.com
           if (host.split('.').length > 2 && /^(?=.*\d.*\d)(?=.*[a-z])[a-z0-9]{6,}$/.test(host.split('.')[0])) return;
           if (SPAM_TITLE.test(r.title ? text(r.title) : '')) return;
+          // Страницы ошибок («Ошибка», «404», «Страница не найдена») — не то, что искали.
+          if (/^(ошибка|error|404|not found|страница не найдена|page not found)(?![a-zа-яё])/i.test(r.title ? text(r.title) : '')) return;
           const key = host + u.pathname.replace(/\/$/, '') + u.search;
           if (seen.has(key)) return;
           seen.add(key);
@@ -374,8 +377,13 @@ function createVerticals(fetchJson, probe = null, resolve = null) {
           const title = !rawTitle || PROTECTION_TITLE.test(rawTitle) ? host : rawTitle;
           // На русский запрос — без копий тех же страниц на украинском («Ігри… На Яндекс Игры»).
           if (/[а-яё]/i.test(query) && /[іїєґ]/i.test(title)) return;
-          // Выше — сайты, в адресе которых есть слово запроса, и главные страницы сайтов.
-          const score = (tokens.some((t) => host.includes(t)) ? 30 : 0) + (segments.length === 0 ? 15 : 0) + (tokens.some((t) => title.toLowerCase().includes(t)) ? 5 : 0) - rank - order * 2;
+          // Выше — сайты, в адресе которых есть слово запроса, главные страницы и популярные сайты.
+          // Популярность считается только у сайта «про запрос» (skin.club на «skins»), а не у страниц
+          // гигантов, где слово просто встречается (Википедия, YouTube).
+          const aboutQuery = tokens.some((t) => host.includes(t));
+          // Главный сайт (gosuslugi.ru) — выше своих поддоменов (smev.gosuslugi.ru).
+          const mainSite = popularity.rankOf(host) > 0 && host.split('.').length === 2;
+          const score = (aboutQuery ? 30 + popularity.popularityScore(host) * 4 + (mainSite ? 12 : 0) : 0) + (segments.length === 0 ? 15 : 0) + (tokens.some((t) => title.toLowerCase().includes(t)) ? 5 : 0) - rank - order * 2;
           items.push({ title, url: r.url, host, snippet: text(r.extract), source: 'web', score });
         });
       });
@@ -392,7 +400,17 @@ function createVerticals(fetchJson, probe = null, resolve = null) {
       const lists = [en ? guessHosts(en) : [], guessHosts(query)];
       const mixed = [];
       for (let i = 0; i < Math.max(lists[0].length, lists[1].length); i++) mixed.push(lists[0][i], lists[1][i]);
-      let hosts = [...new Set(mixed.filter(Boolean))];
+      // Сначала — известные сайты с таким именем из рейтинга популярности (caser → caser.one, caser.gg),
+      // их не нужно угадывать: они точно есть и их посещают.
+      const labels = new Set();
+      for (const v of [en, query]) {
+        const words = latin(v || '').split(/[^a-z0-9]+/).filter(Boolean);
+        if (!words.length) continue;
+        labels.add(words.join(''));
+        if (words.length > 1) labels.add(words.join('-'));
+      }
+      const known = [...labels].flatMap((label) => popularity.domainsNamed(label, 6)).sort((a, b) => a.rank - b.rank).map((r) => r.domain);
+      let hosts = [...new Set(mixed.filter(Boolean))].filter((h) => !known.includes(h));
       if (resolve) {
         // Быстрый отсев через DNS: открываем только существующие адреса.
         // По 8 запросов одновременно: на десятки сразу DNS-серверы отвечают с задержкой или не отвечают.
@@ -407,7 +425,7 @@ function createVerticals(fetchJson, probe = null, resolve = null) {
         await Promise.all(Array.from({ length: 8 }, dnsWorker));
         hosts = hosts.filter((h, i) => ips[i] && ips[i].length);
       }
-      hosts = hosts.slice(0, 18);
+      hosts = [...known.slice(0, 8), ...hosts].slice(0, 18);
       const found = new Array(hosts.length).fill(null);
       let next = 0;
       const worker = async () => {
@@ -422,13 +440,15 @@ function createVerticals(fetchJson, probe = null, resolve = null) {
       const parked = (r, i) => {
         const name = hosts[i].split('.')[0];
         const finalHost = new URL(r.url).hostname.toLowerCase();
-        return !finalHost.includes(name) || /for sale|is parked|buy this domain|домен продаётся|домен продается|купить домен|parking|hosted by|suspended|coming soon|under construction|default page|welcome to nginx|index of \/|this domain|домен припаркован|сайт в разработке|сайт временно|домен зарегистрирован|domain registered|reg.ru|регистратор/i.test(r.title);
+        return !finalHost.includes(name) || /for sale|is parked|buy this domain|домен продаётся|домен продается|купить домен|parking|hosted by|suspended|coming soon|under construction|default page|welcome to nginx|index of \/|this domain|домен припаркован|сайт в разработке|сайт временно|домен зарегистрирован|domain registered|reg.ru|регистратор|informationen zum thema|related searches|ähnliche suchanfragen|^loading\.\.\.$/i.test(r.title);
       };
       // Выше — сайты с настоящим названием, где есть слово запроса; домены без названия — в конце, не больше двух.
       const wordsOf = (v) => String(v || '').toLowerCase().split(/[^a-zа-яё0-9]+/).filter((w) => w.length >= 3);
       const has = (r, v) => wordsOf(v).some((w) => r.title.toLowerCase().includes(w));
       // «кейсер»: caser.one («КЕЙСЕР (CASER) — Официальный сайт») выше keyser.com (недвижимость в Аризоне).
-      const rank = (r) => (r.title ? 2 : 0) + (has(r, query) ? 4 : 0) + (has(r, en) ? 3 : 0) + (has(r, latin(query)) ? 2 : 0) + (/[а-яё]/i.test(query) && /[а-яё]/i.test(r.title) ? 1 : 0);
+      // Плюс популярность сайта: известный сайт выше одноимённого малоизвестного.
+      const pop = (r) => popularity.popularityScore(new URL(r.url).hostname);
+      const rank = (r) => (r.title ? 2 : 0) + (has(r, query) ? 4 : 0) + (has(r, en) ? 3 : 0) + (has(r, latin(query)) ? 2 : 0) + (/[а-яё]/i.test(query) && /[а-яё]/i.test(r.title) ? 1 : 0) + pop(r);
       const list = found
         .map((r, i) => (r && !parked(r, i) ? r : null))
         .filter(Boolean)
@@ -436,8 +456,8 @@ function createVerticals(fetchJson, probe = null, resolve = null) {
       let untitled = 0;
       return list
         .filter((r) => !SPAM_TITLE.test(r.title))
-        .filter((r) => r.title || untitled++ < 2)
-        .map((r) => ({ title: r.title || new URL(r.url).hostname, url: r.url, host: new URL(r.url).hostname.replace(/^www\./, ''), snippet: '', source: 'guess' }))
+        .filter((r) => r.title || pop(r) > 0 || untitled++ < 2)
+        .map((r) => ({ title: r.title || new URL(r.url).hostname, url: r.url, host: new URL(r.url).hostname.replace(/^www\./, ''), snippet: '', source: 'guess', strong: pop(r) > 0 || has(r, query) || (en && has(r, en) && /[а-яё]/i.test(r.title)) }))
         .filter((r) => !seen.has(r.host) && seen.add(r.host));
     });
   }
