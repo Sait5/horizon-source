@@ -15,6 +15,7 @@ const {
   nativeImage,
   powerMonitor,
   shell,
+  globalShortcut,
   webContents: allWebContents,
 } = require('electron');
 const fs = require('node:fs');
@@ -416,11 +417,31 @@ function tabBounds() {
   return { ...bounds, x: left, width: bounds.width - left };
 }
 
+// F11, как в Яндекс Браузере: на весь экран только сайт, без вкладок и адресной строки.
+let browserFullscreen = false;
+function toggleBrowserFullscreen(on = !browserFullscreen) {
+  if (!win) return;
+  browserFullscreen = on;
+  if (on) closeOverlay({ refocus: false });
+  win.setFullScreen(on);
+  layout();
+  if (on) setTimeout(() => showFullscreenNotice('F11'), 150);
+  const tab = activeTab();
+  if (tab) focusPage(tab.view.webContents);
+}
+
+// Фокус клавиатуры — странице (после полноэкранного режима, подсказок и т. п.).
+function focusPage(wc) {
+  setTimeout(() => {
+    if (wc && !wc.isDestroyed()) wc.focus();
+  }, 60);
+}
+
 function layout() {
   if (!win) return;
   const bounds = tabBounds();
   const [width, height] = win.getContentSize();
-  for (const tab of tabs.values()) tab.view.setBounds(tab.fullscreen ? { x: 0, y: 0, width, height } : bounds);
+  for (const tab of tabs.values()) tab.view.setBounds(tab.fullscreen || browserFullscreen ? { x: 0, y: 0, width, height } : bounds);
   if (overlay) overlay.setBounds(overlayBounds());
   if (introView) introView.setBounds({ x: 0, y: 0, width, height });
 }
@@ -447,7 +468,9 @@ function openInitialTabs() {
     createTab();
     return;
   }
-  const created = saved.urls.map((url) => createTab(url, { focusAddressBar: false, activate: false }));
+  // Сохранённые вкладки не загружаются, пока их не откроют: ролики не играют все разом,
+  // сайты не работают в фоне, браузер запускается быстрее.
+  const created = saved.urls.map((url) => createTab(url, { focusAddressBar: false, activate: false, lazy: true }));
   activateTab((created[saved.activeIndex] || created[0]).id);
 }
 
@@ -476,6 +499,8 @@ function sendState() {
 }
 
 function focusAddress() {
+  // Адресная строка спрятана в режиме F11 — Ctrl+L возвращает панели.
+  if (browserFullscreen) toggleBrowserFullscreen(false);
   closeOverlay();
   win.webContents.focus();
   win.webContents.send('focus-address');
@@ -486,7 +511,7 @@ function applyWebRtcPolicy(wc) {
   wc.setWebRTCIPHandlingPolicy(vpn && vpn.protectsTraffic ? 'disable_non_proxied_udp' : 'default');
 }
 
-function createTab(url = START_URL, { focusAddressBar = true, activate = true } = {}) {
+function createTab(url = START_URL, { focusAddressBar = true, activate = true, lazy = false } = {}) {
   trace(`вкладка: создание ${url}`);
   const id = nextId++;
   const view = new WebContentsView({
@@ -534,11 +559,15 @@ function createTab(url = START_URL, { focusAddressBar = true, activate = true } 
     win.setFullScreen(true);
     showFullscreenNotice();
     layout();
+    // Клавиатура остаётся у видео: пробел — пауза, стрелки — перемотка, как на YouTube.
+    focusPage(wc);
   });
   wc.on('leave-html-full-screen', () => {
     tab.fullscreen = false;
-    win.setFullScreen(false);
+    // Если до видео был включён F11, окно остаётся во весь экран.
+    if (!browserFullscreen) win.setFullScreen(false);
     layout();
+    focusPage(wc);
   });
   // Упавшая вкладка показывает объяснение и кнопку «Повторить», а не пустой экран.
   wc.on('render-process-gone', (_e, details) => {
@@ -610,7 +639,18 @@ function createTab(url = START_URL, { focusAddressBar = true, activate = true } 
   view.setVisible(false);
   win.contentView.addChildView(view, 0);
   layout();
-  wc.loadURL(url);
+  if (lazy) {
+    // Загрузится при первом открытии (см. activateTab); пока в заголовке — адрес сайта.
+    tab.lazy = true;
+    tab.loading = false;
+    try {
+      if (!url.startsWith(START_URL)) tab.title = new URL(url).hostname.replace(/^www\./, '');
+    } catch {
+      // Заголовок по умолчанию.
+    }
+  } else {
+    wc.loadURL(url);
+  }
   if (activate) activateTab(id);
   else sendState();
   if (focusAddressBar) focusAddress();
@@ -618,9 +658,31 @@ function createTab(url = START_URL, { focusAddressBar = true, activate = true } 
   return tab;
 }
 
+// Ролик со звуком, который играет на вкладке, при переходе на другую вкладку уходит в окошко
+// «картинка в картинке»: его можно перетащить в любой угол и менять размер. При возврате — обратно.
+const PIP_ENTER = `(async () => {
+  const v = [...document.querySelectorAll('video')].find((x) => !x.paused && !x.ended && x.readyState > 2 && !x.muted && x.offsetWidth > 100);
+  if (!v || !document.pictureInPictureEnabled || document.pictureInPictureElement || v.disablePictureInPicture) return false;
+  await v.requestPictureInPicture();
+  return true;
+})()`;
+const PIP_LEAVE = 'document.pictureInPictureElement ? document.exitPictureInPicture().then(() => true) : false';
+
 function activateTab(id) {
   if (!tabs.has(id)) return;
+  const previous = tabs.get(activeId);
+  if (previous && previous.id !== id && !previous.fullscreen && !previous.view.webContents.isDestroyed()) {
+    previous.view.webContents.executeJavaScript(PIP_ENTER, true).catch(() => {});
+  }
   activeId = id;
+  const current = tabs.get(id);
+  if (current.lazy) {
+    current.lazy = false;
+    current.loading = true;
+    current.view.webContents.loadURL(current.url);
+  } else if (previous && previous.id !== id) {
+    current.view.webContents.executeJavaScript(PIP_LEAVE, true).catch(() => {});
+  }
   for (const tab of tabs.values()) tab.view.setVisible(tab.id === id);
   notifyStartPages();
   if (overlayMode === 'fill' || overlayMode === 'save' || overlayMode === 'suggest') closeOverlay({ refocus: false });
@@ -711,11 +773,32 @@ function withActive(action) {
   if (tab) action(tab.view.webContents);
 }
 
-function reloadActive() {
+function reloadActive(hard = false) {
   const tab = activeTab();
   if (!tab) return;
   if (tab.failedUrl) tab.view.webContents.loadURL(tab.failedUrl);
+  else if (hard) tab.view.webContents.reloadIgnoringCache();
   else tab.view.webContents.reload();
+}
+
+// F5 и F11 срабатывают всегда, пока окно Horizon активно, — даже если фокус не на странице
+// (после клика по заголовку окна, по всплывающей подсказке и т. п.). Другим программам не мешают:
+// клавиши заняты только, пока Horizon в фокусе.
+const WINDOW_KEYS = {
+  F5: () => reloadActive(),
+  'CommandOrControl+R': () => reloadActive(),
+  'Shift+F5': () => reloadActive(true),
+  'CommandOrControl+F5': () => reloadActive(true),
+  'CommandOrControl+Shift+R': () => reloadActive(true),
+  F11: () => toggleBrowserFullscreen(),
+};
+function registerWindowKeys() {
+  for (const [accelerator, handler] of Object.entries(WINDOW_KEYS)) {
+    if (!globalShortcut.isRegistered(accelerator)) globalShortcut.register(accelerator, handler);
+  }
+}
+function unregisterWindowKeys() {
+  for (const accelerator of Object.keys(WINDOW_KEYS)) globalShortcut.unregister(accelerator);
 }
 
 function openUrl(url, { newTab = false } = {}) {
@@ -1126,7 +1209,7 @@ function handleShortcut(input) {
   if (ctrl && (key === '=' || key === '+')) return zoom(0.5), true;
   if (ctrl && key === '-') return zoom(-0.5), true;
   if (ctrl && key === '0') return zoom(0), true;
-  if (key === 'f11') return win.setFullScreen(!win.isFullScreen()), true;
+  if (key === 'f11') return toggleBrowserFullscreen(), true;
   if (ctrl && key === 'w') return closeTab(activeId), true;
   if (ctrl && key === 'l') return focusAddress(), true;
   if (ctrl && key === 'tab') return cycleTab(input.shift ? -1 : 1), true;
@@ -1368,6 +1451,14 @@ function createWindow() {
   // Вкладка, созданная до показа окна, оставалась для Chromium «скрытой» — и видео на главной
   // (волны) вставало на паузу. При показе, разворачивании и фокусе окна видимость обновляется.
   for (const event of ['show', 'restore', 'focus']) win.on(event, refreshTabVisibility);
+  win.on('focus', registerWindowKeys);
+  win.on('blur', unregisterWindowKeys);
+  // Выход из полноэкранного режима средствами системы — панели возвращаются.
+  win.on('leave-full-screen', () => {
+    if (!browserFullscreen) return;
+    browserFullscreen = false;
+    layout();
+  });
   win.webContents.once('did-finish-load', () => {
     trace('интерфейс загружен');
     sendProfile();
@@ -1382,6 +1473,7 @@ function createWindow() {
   });
   win.on('close', saveSessionNow);
   win.on('closed', () => {
+    unregisterWindowKeys();
     win = null;
     overlay = null;
     tabs.clear();
@@ -1447,14 +1539,14 @@ function setupSession() {
 
 // Предупреждение при входе сайта в полноэкранный режим: подделать интерфейс браузера незаметно не выйдет.
 let noticeView = null;
-function showFullscreenNotice() {
+function showFullscreenNotice(keyName = 'Esc') {
   if (!win) return;
   if (noticeView) win.contentView.removeChildView(noticeView);
   noticeView = new WebContentsView({ webPreferences: { sandbox: true, contextIsolation: true, javascript: false } });
   noticeView.setBackgroundColor('#00000000');
   const html = `<html><body style="margin:0;display:grid;place-items:center;height:100vh;font:14px Segoe UI,sans-serif">
     <div style="padding:12px 20px;border-radius:12px;background:rgba(14,17,22,.92);color:#e6eaf0;border:1px solid #2a313c">
-    Сайт открыт во весь экран. Нажмите <b>Esc</b>, чтобы выйти</div></body></html>`;
+    Сайт открыт во весь экран. Нажмите <b>${keyName}</b>, чтобы выйти</div></body></html>`;
   noticeView.webContents.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
   const [width] = win.getContentSize();
   noticeView.setBounds({ x: Math.round(width / 2 - 220), y: 24, width: 440, height: 60 });

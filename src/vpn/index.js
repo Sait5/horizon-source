@@ -57,6 +57,7 @@ class Vpn extends EventEmitter {
       status: this.status,
       message: this.message,
       ip: this.ip,
+      latency: this.status === 'on' ? this.latency || null : null,
       pings: this.pings || {},
       selectedId: this.data.selectedId,
       configs: this.data.configs.map((c) => ({
@@ -152,6 +153,7 @@ class Vpn extends EventEmitter {
       this.setStatus('on');
       this.startHealth();
       this.refreshIp();
+      this.test().catch(() => {});
     } catch (error) {
       if (seq !== this.connectSeq) return;
       this.setStatus('error', error.message);
@@ -259,7 +261,10 @@ class Vpn extends EventEmitter {
     const started = Date.now();
     const { ok } = await this.request(PROBE_URL);
     if (!ok) throw new Error('Сервер не ответил');
-    return Date.now() - started;
+    // Пинг через VPN: время ответа проверочного адреса (как «задержка» в других VPN-программах).
+    this.latency = Date.now() - started;
+    this.emit('change', this.publicState());
+    return this.latency;
   }
 
   // ---------- Добавление конфигураций ----------

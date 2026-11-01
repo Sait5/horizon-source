@@ -235,7 +235,7 @@ function renderVpn() {
   const statusText = {
     off: 'Выключен',
     connecting: 'Подключение…',
-    on: s.ip ? `Подключён · IP ${s.ip}` : 'Подключён',
+    on: ['Подключён', s.ip ? `IP ${s.ip}` : null, s.latency ? `пинг ${s.latency} мс` : null].filter(Boolean).join(' · '),
     lost: 'Соединение потеряно',
     error: 'Не удалось подключиться',
   }[s.status];
@@ -279,8 +279,8 @@ function renderVpn() {
           'div',
           { class: 'row', style: 'margin-bottom: 8px' },
           h('p', { class: 'section-title', style: 'flex:1;margin:0' }, `Серверы${s.configs.length ? ` · ${s.configs.length}` : ''}`),
-          s.configs.length > 1
-            ? button('Проверить задержку', () => action(() => api.call('vpn.ping'), (p) => {
+          s.configs.length
+            ? button('Проверить пинг', () => action(() => api.call('vpn.ping'), (p) => {
                 const alive = Object.values(p).filter((v) => v !== null);
                 return alive.length ? `Отвечают ${alive.length} из ${Object.keys(p).length}, лучший — ${Math.min(...alive)} мс` : 'Ни один сервер не ответил';
               }), { kind: 'ghost' })
@@ -1439,13 +1439,30 @@ api.onOpen(async (nextMode, nextPayload) => {
   if (!recoveryCode) view = '';
   else view = 'code';
   try {
-    if (mode === 'vpn') vpn = await api.call('vpn.state');
+    if (mode === 'vpn') {
+      vpn = await api.call('vpn.state');
+      watchVpnPing();
+    }
     await refreshVault();
   } catch (error) {
     note = { text: error.message, kind: 'error' };
   }
   render();
 });
+
+// Пинг виден сразу: при открытии окна VPN серверы проверяются сами,
+// а задержка текущего подключения обновляется каждые 15 секунд, пока окно открыто.
+let vpnPingTimer = null;
+function watchVpnPing() {
+  clearInterval(vpnPingTimer);
+  const tick = () => {
+    if (mode !== 'vpn') return clearInterval(vpnPingTimer);
+    if (vpn && vpn.status === 'on') api.call('vpn.test').catch(() => {});
+  };
+  if (vpn && vpn.configs.length && !Object.keys(vpn.pings || {}).length) api.call('vpn.ping').catch(() => {});
+  tick();
+  vpnPingTimer = setInterval(tick, 15000);
+}
 
 api.onVpn((state) => {
   vpn = state;
