@@ -102,7 +102,12 @@
           ]
         }
       ],
-      "x64ArchFiles": "**/core/sing-box"
+      "x64ArchFiles": "**/core/sing-box",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Сайты в Horizon могут попросить микрофон — например, для голосового поиска или звонков.",
+        "NSCameraUsageDescription": "Сайты в Horizon могут попросить камеру — например, для видеозвонков.",
+        "NSLocationUsageDescription": "Сайты в Horizon могут попросить ваше местоположение — например, карты."
+      }
     },
     "dmg": {
       "title": "Horizon ${version}",

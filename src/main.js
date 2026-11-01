@@ -424,7 +424,7 @@ function toggleBrowserFullscreen(on = !browserFullscreen) {
   browserFullscreen = on;
   if (on) closeOverlay({ refocus: false });
   win.setFullScreen(on);
-  layout();
+  settleLayout();
   if (on) setTimeout(() => showFullscreenNotice('F11'), 150);
   const tab = activeTab();
   if (tab) focusPage(tab.view.webContents);
@@ -435,6 +435,20 @@ function focusPage(wc) {
   setTimeout(() => {
     if (wc && !wc.isDestroyed()) wc.focus();
   }, 60);
+}
+
+let settleTimers = [];
+function settleLayout() {
+  for (const t of settleTimers) clearTimeout(t);
+  layout();
+  settleTimers = [80, 250, 600].map((ms) =>
+    setTimeout(() => {
+      layout();
+      const tab = activeTab();
+      if (tab && !tab.view.webContents.isDestroyed()) tab.view.webContents.invalidate();
+      if (win && !win.isDestroyed()) win.webContents.invalidate();
+    }, ms),
+  );
 }
 
 function layout() {
@@ -558,7 +572,7 @@ function createTab(url = START_URL, { focusAddressBar = true, activate = true, l
     closeOverlay({ refocus: false });
     win.setFullScreen(true);
     showFullscreenNotice();
-    layout();
+    settleLayout();
     // Клавиатура остаётся у видео: пробел — пауза, стрелки — перемотка, как на YouTube.
     focusPage(wc);
   });
@@ -566,7 +580,7 @@ function createTab(url = START_URL, { focusAddressBar = true, activate = true, l
     tab.fullscreen = false;
     // Если до видео был включён F11, окно остаётся во весь экран.
     if (!browserFullscreen) win.setFullScreen(false);
-    layout();
+    settleLayout();
     focusPage(wc);
   });
   // Упавшая вкладка показывает объяснение и кнопку «Повторить», а не пустой экран.
@@ -1327,7 +1341,9 @@ ipcMain.on('appearance:removeImage', fromUi(safely(() => profile.removeBackgroun
 ipcMain.on('sitedata:clear', fromUi(async () => {
   await browserSession.clearStorageData();
   await browserSession.clearCache();
-  if (win) win.webContents.send('ui:error', 'Cookies и данные сайтов удалены. Вы вышли из всех сайтов.');
+  permissionsCache = {};
+  saveSitePermissions();
+  if (win) win.webContents.send('ui:error', 'Cookies, данные и разрешения сайтов удалены. Вы вышли из всех сайтов.');
 }));
 ipcMain.on('bookmark:toggle', fromUi(safely(() => {
   const tab = activeTab();
@@ -1444,6 +1460,9 @@ function createWindow() {
     if (handleShortcut(input)) event.preventDefault();
   });
   win.on('resize', layout);
+  // После разворачивания, F11 и выхода из полноэкранного режима размер окна приходит с задержкой:
+  // раскладываем ещё раз и просим страницу перерисоваться — иначе остаётся белая «дыра» на пол-экрана.
+  for (const event of ['maximize', 'unmaximize', 'enter-full-screen', 'leave-full-screen', 'resized', 'restore']) win.on(event, settleLayout);
   win.once('ready-to-show', () => {
     trace('окно показано');
     win.show();
@@ -1523,8 +1542,15 @@ function setupSession() {
     callback({ requestHeaders: headers });
   });
   // Камера, микрофон, геолокация и уведомления пока запрещены: запрос разрешений появится позже.
-  browserSession.setPermissionRequestHandler((_wc, permission, callback) => {
-    callback(permission === 'fullscreen' || permission === 'clipboard-sanitized-write');
+  browserSession.setPermissionRequestHandler((wc, permission, callback, details) => {
+    if (permission === 'fullscreen' || permission === 'clipboard-sanitized-write') return callback(true);
+    askSitePermission(wc, permission, details).then(callback, () => callback(false));
+  });
+  // Сайт заранее спрашивает «можно ли?» (navigator.permissions) — отвечаем по запомненному решению.
+  browserSession.setPermissionCheckHandler((_wc, permission, origin, details) => {
+    if (permission === 'fullscreen' || permission === 'clipboard-sanitized-write') return true;
+    const kinds = permissionKinds(permission, details && details.mediaType ? [details.mediaType] : []);
+    return kinds.length > 0 && kinds.every((k) => sitePermissions()[siteOf(origin)]?.[k] === true);
   });
   browserSession.on('will-download', (_event, item, wc) => {
     // Сайт не может сам, без нажатия человека, подсунуть файл в «Загрузки».
@@ -1535,6 +1561,81 @@ function setupSession() {
     }
     trackDownload(item);
   });
+}
+
+// ---------- Разрешения сайтов (микрофон, камера, местоположение, уведомления) ----------
+// Как в других браузерах: сайт спрашивает — Horizon показывает вопрос, ответ запоминается для сайта.
+// Сбросить все решения — «Удалить cookies и кэш сайтов» в настройках.
+const PERMISSION_NAMES = { microphone: 'микрофону', camera: 'камере', geolocation: 'вашему местоположению', notifications: 'уведомлениям' };
+let permissionsCache = null;
+function permissionsFile() {
+  return path.join(app.getPath('userData'), 'site-permissions.json');
+}
+function sitePermissions() {
+  if (!permissionsCache) {
+    try {
+      permissionsCache = JSON.parse(fs.readFileSync(permissionsFile(), 'utf8'));
+    } catch {
+      permissionsCache = {};
+    }
+  }
+  return permissionsCache;
+}
+function saveSitePermissions() {
+  fs.writeFileSync(permissionsFile(), JSON.stringify(permissionsCache || {}, null, 1));
+}
+function siteOf(url) {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return '';
+  }
+}
+// Какие разрешения на самом деле просят: media → микрофон и/или камера.
+function permissionKinds(permission, mediaTypes = []) {
+  if (permission === 'media') {
+    const kinds = [];
+    if (mediaTypes.includes('audio')) kinds.push('microphone');
+    if (mediaTypes.includes('video')) kinds.push('camera');
+    return kinds;
+  }
+  return PERMISSION_NAMES[permission] ? [permission] : [];
+}
+const pendingPermissions = new Map();
+async function askSitePermission(wc, permission, details = {}) {
+  const origin = siteOf(details.requestingUrl || (wc && wc.getURL()) || '');
+  const kinds = permissionKinds(permission, details.mediaTypes || []);
+  // Разрешения не нужны внутренним страницам и непонятным запросам; в детском режиме — без камеры.
+  if (!/^https?:/.test(origin) || !kinds.length || (kidsMode() && kinds.includes('camera'))) return false;
+  const saved = sitePermissions()[origin] || {};
+  if (kinds.every((k) => saved[k] === true)) return true;
+  if (kinds.some((k) => saved[k] === false)) return false;
+  // Один вопрос на сайт и набор разрешений, даже если сайт спросил несколько раз подряд.
+  const key = origin + '|' + kinds.join(',');
+  if (pendingPermissions.has(key)) return pendingPermissions.get(key);
+  const host = new URL(origin).hostname.replace(/^www\./, '');
+  const what = kinds.map((k) => PERMISSION_NAMES[k]).join(' и ');
+  const ask = dialog
+    .showMessageBox(win, {
+      type: 'question',
+      title: 'Разрешение для сайта',
+      message: `Разрешить сайту ${host} доступ к ${what}?`,
+      detail: 'Решение запомнится для этого сайта. Отменить его можно в настройках: «Удалить cookies и кэш сайтов».',
+      buttons: ['Разрешить', 'Запретить'],
+      defaultId: 0,
+      cancelId: 1,
+      noLink: true,
+    })
+    .then(({ response }) => {
+      const allowed = response === 0;
+      const record = (sitePermissions()[origin] = sitePermissions()[origin] || {});
+      for (const k of kinds) record[k] = allowed;
+      saveSitePermissions();
+      return allowed;
+    })
+    .finally(() => pendingPermissions.delete(key));
+  pendingPermissions.set(key, ask);
+  return ask;
 }
 
 // Предупреждение при входе сайта в полноэкранный режим: подделать интерфейс браузера незаметно не выйдет.
