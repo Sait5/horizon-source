@@ -122,8 +122,9 @@ function guessHosts(query) {
 }
 
 // fetchJson — запрос JSON; probe(url) → { url, title } если сайт открывается, иначе null;
-// resolve(host) → список IP или null (быстрая проверка, есть ли такой домен).
-function createVerticals(fetchJson, probe = null, resolve = null) {
+// resolve(host) → список IP или null (быстрая проверка, есть ли такой домен);
+// fetchText(url) → текст ответа (лента DeviantArt — не JSON).
+function createVerticals(fetchJson, probe = null, resolve = null, fetchText = null) {
   const cache = new Map();
   async function cached(key, fn) {
     const hit = cache.get(key);
@@ -229,26 +230,136 @@ function createVerticals(fetchJson, probe = null, resolve = null) {
     return { total: null, pages: d.continue ? Math.min(page + 1, 12) : page, source: 'Wikimedia Commons', items };
   }
 
-  // Оба источника спрашиваются сразу, показывается тот, что первым ответил с картинками.
+  // Обои и арты Wallhaven — только безопасные (purity=100), без ключа.
+  async function wallhaven(query, page) {
+    const d = await fetchJson(`https://wallhaven.cc/api/v1/search?q=${enc(query)}&purity=100&categories=111&sorting=relevance&page=${page}`);
+    const meta = d.meta || {};
+    return {
+      total: meta.total || 0,
+      pages: Math.min(meta.last_page || 1, 12),
+      source: 'Wallhaven',
+      items: (d.data || [])
+        .filter((r) => r.purity === 'sfw')
+        .map((r) => ({
+          thumb: (r.thumbs && (r.thumbs.large || r.thumbs.original)) || r.path,
+          full: r.path,
+          page: r.url,
+          title: '',
+          author: 'Wallhaven',
+          width: r.dimension_x,
+          height: r.dimension_y,
+        })),
+    };
+  }
+
+  // Рисунки и арты DeviantArt (лента RSS без ключа); работы «для взрослых» отбрасываются.
+  async function deviantart(query, page) {
+    if (!fetchText) throw new Error('нет загрузки текста');
+    const xml = await fetchText(`https://backend.deviantart.com/rss.xml?type=deviation&q=${enc(query)}&offset=${(page - 1) * 60}`);
+    const unescape = (s) => String(s || '').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#039;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+    const items = [];
+    for (const block of xml.split('<item>').slice(1)) {
+      if (/<media:rating>\s*adult/i.test(block)) continue;
+      const content = /<media:content\s[^>]*url="([^"]+)"[^>]*medium="image"[^>]*>/i.exec(block) || /<media:content\s[^>]*medium="image"[^>]*url="([^"]+)"[^>]*>/i.exec(block);
+      if (!content) continue;
+      const tagText = content[0];
+      const thumbs = [...block.matchAll(/<media:thumbnail\s[^>]*url="([^"]+)"/gi)].map((m) => m[1]);
+      const title = unescape((/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i.exec(block) || [])[1]).trim();
+      if (ADULT.test(title)) continue;
+      items.push({
+        thumb: unescape(thumbs[thumbs.length - 1] || content[1]),
+        full: unescape(content[1]),
+        page: unescape((/<link>([^<]+)<\/link>/i.exec(block) || [])[1]),
+        title,
+        author: unescape((/<media:credit\s[^>]*role="author"[^>]*>(?:<!\[CDATA\[)?([^<\]]+)/i.exec(block) || [])[1]),
+        width: Number((/width="(\d+)"/.exec(tagText) || [])[1]) || undefined,
+        height: Number((/height="(\d+)"/.exec(tagText) || [])[1]) || undefined,
+      });
+    }
+    return { total: null, pages: items.length >= 30 ? Math.min(page + 1, 12) : page, source: 'DeviantArt', items };
+  }
+
+  // Перевод запроса на английский (MyMemory, бесплатно, без ключа): подписи картинок почти везде английские.
+  // «движение меча» → «sword movement». Не ответил — английские корни из словаря (english).
+  async function translate(query) {
+    if (!/[а-яё]/i.test(query)) return null;
+    // Слова, которые переводчик понимает не в том смысле («машина» → machine, а ищут автомобили).
+    const OWN = { машина: 'car', машины: 'cars', тачка: 'car', комп: 'computer', телефон: 'smartphone', мультик: 'cartoon', аниме: 'anime', обои: 'wallpaper' };
+    const own = OWN[query.trim().toLowerCase()];
+    if (own) return own;
+    return cached(`tr:${query}`, async () => {
+      try {
+        const d = await fetchJson(`https://api.mymemory.translated.net/get?q=${enc(query)}&langpair=ru%7Cen`);
+        // Сервис иногда ставит первым мусор из чужих переводов («кот» → «course-cat»):
+        // берём первый нормальный вариант — латиница, без склеек и обрывков, переводы Википедии вперёд.
+        const words = query.trim().split(/\s+/).length;
+        const clean = (t) => String(t || '').trim().replace(/[.!]+$/, '');
+        const ok = (t) => t && /^[a-z0-9 ,'’&]+$/i.test(t) && !/[a-z][A-Z]|[A-Z]{2,}[a-z]/.test(t) && t.split(/\s+/).length <= words * 3 + 1 && t.toLowerCase() !== query.toLowerCase();
+        const matches = (d.matches || []).slice().sort((a, b) => (b['created-by'] === 'Wikipedia') - (a['created-by'] === 'Wikipedia') || (b.match || 0) - (a.match || 0));
+        const text = [d.responseData && d.responseData.translatedText, ...matches.map((m) => m.translation)].map(clean).find(ok);
+        if (text) return text;
+      } catch {
+        // Ниже — запасной вариант.
+      }
+      return english(query);
+    });
+  }
+
+  // Картинки как у больших поисковиков: запрос переводится на английский, все источники
+  // спрашиваются сразу, выдача собирается из всех через одного (Openverse — фото Flickr и др.,
+  // Wallhaven — обои и арты, DeviantArt — рисунки, Wikimedia Commons). Похожие по подписи — выше.
   let openverseDownUntil = 0;
   async function images(query, page) {
     return cached(`img:${query}:${page}`, async () => {
-      const withItems = (promise) => promise.then((r) => (r.items.length ? r : Promise.reject(new Error('пусто'))));
-      const sources = [withItems(commons(query, page))];
+      const en = (await translate(query).catch(() => null)) || query;
+      const jobs = [];
       if (Date.now() > openverseDownUntil) {
-        sources.push(
-          withItems(openverse(query, page)).catch((error) => {
+        jobs.push(
+          openverse(en, page).catch((error) => {
             // Openverse не отвечает — 10 минут его не спрашиваем.
-            if (error.message !== 'пусто') openverseDownUntil = Date.now() + 10 * 60 * 1000;
+            openverseDownUntil = Date.now() + 10 * 60 * 1000;
             throw error;
           }),
         );
       }
-      try {
-        return await Promise.any(sources);
-      } catch {
-        return { total: 0, pages: 0, items: [] };
+      jobs.push(wallhaven(en, page), deviantart(en, page), commons(en, page));
+      if (en !== query) jobs.push(commons(query, page));
+      const settled = await Promise.allSettled(jobs);
+      const lists = settled.filter((s) => s.status === 'fulfilled' && s.value.items.length).map((s) => s.value);
+      if (!lists.length) return { total: 0, pages: 0, items: [] };
+      // Внутри каждого источника выше те, у кого в подписи есть слова запроса.
+      const words = `${query} ${en}`.toLowerCase().split(/[^a-zа-яё0-9]+/).filter((w) => w.length >= 3);
+      const fit = (item) => words.filter((w) => (item.title || '').toLowerCase().includes(w)).length;
+      // Сначала — где в подписи все слова запроса, потом — часть слов, потом — остальное;
+      // внутри каждой ступени источники идут через одного. Подписей нет только у Wallhaven —
+      // он сам ищет по меткам, его картинки считаются подходящими наполовину.
+      const enWords = en.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 3);
+      const tier = (item) => {
+        if (!item.title) return 1;
+        const hits = fit(item);
+        return hits >= Math.max(1, enWords.length) ? 2 : hits > 0 ? 1 : 0;
+      };
+      const tagged = lists.map((l) => l.items.map((item) => ({ ...item, source: l.source })));
+      const seen = new Set();
+      const items = [];
+      for (const level of [2, 1, 0]) {
+        const ordered = tagged.map((list) => list.filter((item) => tier(item) === level));
+        for (let i = 0; i < Math.max(0, ...ordered.map((l) => l.length)); i++) {
+          for (const list of ordered) {
+            const item = list[i];
+            if (!item || !item.full || seen.has(item.full)) continue;
+            seen.add(item.full);
+            items.push(item);
+          }
+        }
       }
+      return {
+        total: lists.reduce((sum, l) => sum + (l.total || l.items.length), 0),
+        pages: Math.max(...lists.map((l) => l.pages || 1)),
+        source: lists.map((l) => l.source).join(', '),
+        translated: en !== query ? en : null,
+        items,
+      };
     });
   }
 
@@ -462,7 +573,7 @@ function createVerticals(fetchJson, probe = null, resolve = null) {
     });
   }
 
-  return { wikiSearch, wikiSummary, spell, images, videos, places, finance, web, guess, clearCache: () => cache.clear() };
+  return { wikiSearch, wikiSummary, spell, translate, images, videos, places, finance, web, guess, clearCache: () => cache.clear() };
 }
 
 module.exports = { createVerticals, parseConversion, guessHosts, PROTECTION_TITLE };

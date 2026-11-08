@@ -249,7 +249,7 @@ function probeSite(url) {
 
 // Есть ли домен — быстрым DNS-запросом, до того как открывать угаданный адрес.
 const resolveHost = (host) => dns.resolve4(host).catch(() => dns.resolve6(host)).catch(() => null);
-const verticals = createVerticals(async (url) => JSON.parse(await fetchViaBrowser(url, 9000)), probeSite, resolveHost);
+const verticals = createVerticals(async (url) => JSON.parse(await fetchViaBrowser(url, 9000)), probeSite, resolveHost, (url) => fetchViaBrowser(url, 9000));
 
 // Данные для страницы поиска — общий модуль (тот же, что у сайта-приложения для телефона).
 const buildSearchPage = createSearchPageData({ verticals, sources: () => suggestSources(), strict: () => kidsMode() });
@@ -1547,10 +1547,19 @@ function setupSession() {
     askSitePermission(wc, permission, details).then(callback, () => callback(false));
   });
   // Сайт заранее спрашивает «можно ли?» (navigator.permissions) — отвечаем по запомненному решению.
+  // У Electron здесь только «да/нет», без «ещё не спрашивали». Если ответить «нет», сайт (YouTube)
+  // считает микрофон запрещённым и даже не просит его — вопрос так и не появляется. Поэтому
+  // микрофон, камера и местоположение «нет» — только если человек сам запретил; спрашивает
+  // всё равно setPermissionRequestHandler выше. Уведомления — только с явного разрешения:
+  // их сайт показывает без отдельного запроса.
   browserSession.setPermissionCheckHandler((_wc, permission, origin, details) => {
     if (permission === 'fullscreen' || permission === 'clipboard-sanitized-write') return true;
-    const kinds = permissionKinds(permission, details && details.mediaType ? [details.mediaType] : []);
-    return kinds.length > 0 && kinds.every((k) => sitePermissions()[siteOf(origin)]?.[k] === true);
+    const media = details && details.mediaType;
+    const kinds = permissionKinds(permission, media && media !== 'unknown' ? [media] : ['audio', 'video']);
+    if (!kinds.length) return false;
+    const saved = sitePermissions()[siteOf(origin)] || {};
+    if (permission === 'notifications') return saved.notifications === true;
+    return kinds.every((k) => saved[k] !== false);
   });
   browserSession.on('will-download', (_event, item, wc) => {
     // Сайт не может сам, без нажатия человека, подсунуть файл в «Загрузки».

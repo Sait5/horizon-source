@@ -324,9 +324,7 @@ function renderImages(data) {
     ? `Картинки сейчас недоступны (${data.images.error})`
     : !(data.images.items || []).length
       ? 'Картинок не нашлось. Попробуйте другие слова.'
-      : data.images.total
-        ? `Свободные картинки: ${data.images.total.toLocaleString('ru-RU')}`
-        : 'Свободные картинки';
+      : `Нашлось картинок: ${(data.images.total || data.images.items.length).toLocaleString('ru-RU')}${data.images.translated ? ` · искали также «${data.images.translated}»` : ''}`;
   wrap.append(el('p', 'count', count), gallery);
   if (data.images.pages > imagePage) {
     const more = el('div', 'more');
@@ -344,7 +342,7 @@ function renderImages(data) {
     more.append(btn);
     wrap.append(more);
   }
-  wrap.append(el('p', 'note', `Картинки со свободной лицензией: ${data.images.source || 'Openverse и Wikimedia Commons'}.`));
+  wrap.append(el('p', 'note', `Источники: ${data.images.source || 'Openverse и Wikimedia Commons'}. Прежде чем использовать картинку где-то ещё, проверьте права автора на её странице.`));
   page.replaceChildren(wrap);
 }
 

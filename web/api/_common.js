@@ -12,6 +12,12 @@ async function fetchJson(url) {
   return res.json();
 }
 
+async function fetchText(url) {
+  const res = await fetch(url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(9000) });
+  if (!res.ok) throw new Error(`Ошибка ${res.status}`);
+  return res.text();
+}
+
 const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36';
 
 // Есть ли сайт по угаданному адресу — то же правило, что в браузере на компьютере:
@@ -53,7 +59,7 @@ async function probeSite(url) {
   }
 }
 
-const verticals = createVerticals(fetchJson, probeSite, resolveHost);
+const verticals = createVerticals(fetchJson, probeSite, resolveHost, fetchText);
 // На сайте нет аккаунтов и возраста, поэтому выдача всегда без материалов 18+.
 const searchPageData = createSearchPageData({ verticals, strict: () => true });
 
