@@ -425,7 +425,7 @@ function toggleBrowserFullscreen(on = !browserFullscreen) {
   if (on) closeOverlay({ refocus: false });
   win.setFullScreen(on);
   settleLayout();
-  if (on) setTimeout(() => showFullscreenNotice('F11'), 150);
+  if (on) setTimeout(() => showFullscreenNotice(process.platform === 'darwin' ? 'Ctrl+Cmd+F' : 'F11'), 150);
   const tab = activeTab();
   if (tab) focusPage(tab.view.webContents);
 }
@@ -798,14 +798,22 @@ function reloadActive(hard = false) {
 // F5 и F11 срабатывают всегда, пока окно Horizon активно, — даже если фокус не на странице
 // (после клика по заголовку окна, по всплывающей подсказке и т. п.). Другим программам не мешают:
 // клавиши заняты только, пока Horizon в фокусе.
-const WINDOW_KEYS = {
-  F5: () => reloadActive(),
-  'CommandOrControl+R': () => reloadActive(),
-  'Shift+F5': () => reloadActive(true),
-  'CommandOrControl+F5': () => reloadActive(true),
-  'CommandOrControl+Shift+R': () => reloadActive(true),
-  F11: () => toggleBrowserFullscreen(),
-};
+// На Mac — привычные клавиши Mac: F11 там «показать рабочий стол», а весь экран — Ctrl+Cmd+F.
+const WINDOW_KEYS =
+  process.platform === 'darwin'
+    ? {
+        'Command+R': () => reloadActive(),
+        'Command+Shift+R': () => reloadActive(true),
+        'Control+Command+F': () => toggleBrowserFullscreen(),
+      }
+    : {
+        F5: () => reloadActive(),
+        'CommandOrControl+R': () => reloadActive(),
+        'Shift+F5': () => reloadActive(true),
+        'CommandOrControl+F5': () => reloadActive(true),
+        'CommandOrControl+Shift+R': () => reloadActive(true),
+        F11: () => toggleBrowserFullscreen(),
+      };
 function registerWindowKeys() {
   for (const [accelerator, handler] of Object.entries(WINDOW_KEYS)) {
     if (!globalShortcut.isRegistered(accelerator)) globalShortcut.register(accelerator, handler);
