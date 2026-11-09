@@ -472,6 +472,8 @@ function correctQuery(raw) {
   if (text.length < 3 || text.split(/\s+/).length > 3 || looksLikeUrl(text) || findCategory(text) || siteSearch(text)) return null;
   const best = siteMatch(text);
   if (!best || best.score < 56) return null;
+  // Несколько слов не «исправляются» в одно название: «курс евро» — не Coursera.
+  if (/\s/.test(text) && !/\s/.test(best.name)) return null;
   const lower = text.toLowerCase();
   const typed = [squash(lower), squash(translit(lower))];
   const forms = nameForms(catalogNames(best.entry));

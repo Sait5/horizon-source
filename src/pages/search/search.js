@@ -121,7 +121,8 @@ async function loadWeb(box, countEl, countText, known, nothingElse, pagerBox) {
     const web = data.web || [];
     box.replaceChildren(...web.map(webResult));
     countEl.textContent = countText(known + web.length);
-    if (!web.length && nothingElse) box.replaceChildren(el('p', 'empty', 'Ничего не нашлось. Попробуйте другие слова или вкладки выше.'));
+    // Мало результатов — сразу наверху предлагаем Google: у него своя огромная база.
+    if (pageNo === 1 && known + web.length < 4) box.prepend(googleHint(!web.length && nothingElse));
     // Страницы выдачи — по сайтам из интернета, а не по статьям Википедии.
     if (data.webPages > 1) pagerBox.replaceChildren(pager(Math.max(data.webPages, pageNo)));
   } catch {
@@ -150,6 +151,19 @@ function pager(pages) {
     nav.append(next);
   }
   return nav;
+}
+
+function googleUrl() {
+  return `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+}
+
+function googleHint(nothing) {
+  const box = el('div', 'google-hint');
+  box.append(
+    el('div', 'google-hint-text', nothing ? `По запросу «${query}» у нас ничего не нашлось.` : `По запросу «${query}» у нас нашлось немного.`),
+    safeLink(googleUrl(), 'btn primary', 'Посмотреть в Google'),
+  );
+  return box;
 }
 
 function webResult(w) {
@@ -186,6 +200,22 @@ function renderAll(data) {
     const calc = el('div', 'calc');
     calc.append(el('div', 'count', `${data.query} =`), el('div', 'value', Number(data.calc).toLocaleString('ru-RU')));
     left.append(calc);
+  }
+  // «курс доллара», «100 долларов в рублях», «биткоин» — ответ сразу, без перехода на сайты.
+  const money = data.money;
+  if (money && (money.conversion || money.rates.length || money.crypto.length)) {
+    const box = el('div', 'calc');
+    if (money.conversion) {
+      const c = money.conversion;
+      box.append(el('div', 'count', `${fmt(c.amount)} ${c.from} =`), el('div', 'value', `${fmt(c.value)} ${c.to}`));
+    } else {
+      for (const r of money.rates) box.append(el('div', 'count', `1 ${r.code} =`), el('div', 'value', `${fmt(r.rub)} ₽`));
+      for (const c of money.crypto) box.append(el('div', 'count', `1 ${c.name} =`), el('div', 'value', `${fmt(c.rub, 0)} ₽ · $${fmt(c.usd, 0)}`));
+    }
+    const all = el('a', 'more-link', 'Все курсы валют →');
+    all.href = href('finance');
+    box.append(all);
+    left.append(box);
   }
   const sites = data.sites || [];
   const top = sites[0];
@@ -229,12 +259,7 @@ function renderAll(data) {
   left.append(pagerBox);
   // У больших поисковиков своя база из миллиардов страниц — если здесь нужного нет, туда один клик.
   const elsewhere = el('p', 'note elsewhere');
-  elsewhere.append(
-    document.createTextNode('Не нашли нужный сайт? Искать «' + query + '» в '),
-    safeLink(`https://ya.ru/search/?text=${encodeURIComponent(query)}`, null, 'Яндексе'),
-    document.createTextNode(' или '),
-    safeLink(`https://www.google.com/search?q=${encodeURIComponent(query)}`, null, 'Google'),
-  );
+  elsewhere.append(document.createTextNode('Не нашли нужное? '), safeLink(googleUrl(), null, `Искать «${query}» в Google`));
   left.append(elsewhere);
   loadWeb(webBox, countEl, countText, pageNo === 1 ? sites.length : 0, !sites.length && !wikiItems.length, pagerBox);
 

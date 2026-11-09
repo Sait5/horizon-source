@@ -13,6 +13,23 @@ function namedLike(title, query) {
   return q.length > 0 && q.every((w) => t.includes(w)) && t.length <= q.length + 2;
 }
 
+// Служебные слова запроса, которые не относятся к названию сайта.
+const FILLER = new Set(['скачать', 'скачай', 'бесплатно', 'бесплатный', 'бесплатные', 'онлайн', 'online', 'официальный', 'официальная', 'сайт', 'смотреть', 'играть', 'вход', 'войти', 'зайти', 'открыть', 'download', 'free', 'на', 'пк', 'компьютер', 'русском', 'без', 'регистрации', 'торрент', 'последняя', 'версия', 'версию']);
+// Какую валюту спрашивают: «курс доллара» → USD.
+// Слово целиком (у JS \b не работает с кириллицей): «лира», но не «лирика».
+const MONEY = [
+  [/(^|[^а-яё])(доллар|бакс)|(^|\W)usd(\W|$)/i, 'USD'],
+  [/(^|[^а-яё])евро([^а-яё]|$)|(^|\W)eur(\W|$)/i, 'EUR'],
+  [/(^|[^а-яё])юан|(^|\W)cny(\W|$)/i, 'CNY'],
+  [/(^|[^а-яё])тенге/i, 'KZT'],
+  [/(^|[^а-яё])лир[аыу]?([^а-яё]|$)/i, 'TRY'],
+  [/(^|[^а-яё])(биткоин|крипт)|bitcoin/i, 'crypto'],
+];
+
+function coreOf(text) {
+  return String(text).toLowerCase().split(/\s+/).filter((w) => w && !FILLER.has(w)).join(' ');
+}
+
 function createSearchPageData({ verticals, sources = () => ({}), strict = () => false }) {
   async function raw(query, tab, page, exact, base) {
     const safe = async (fn, fallback) => {
@@ -40,8 +57,12 @@ function createSearchPageData({ verticals, sources = () => ({}), strict = () => 
       // Проверка адресов стартует, когда индекс ответил (или через 2,5 с): на сервере потоков для DNS мало,
       // и десяток проверок одновременно задерживает основной запрос.
       // Точное название сайта из каталога («дота 2» → Dota 2) — угадывать адреса (dota.net…) незачем.
+      // Угадывать адреса незачем, если это сайт из каталога («дота 2», «скачать майнкрафт»)
+      // или общее слово-категория («погода», «новости»): иначе в выдачу лезут news.net, music.gg.
       const known = search.siteMatch(text);
-      const guessP = verticals.guess && page === 1 && !(known && known.score >= 100) ? Promise.race([webP, new Promise((r) => setTimeout(r, 2500))]).then(() => verticals.guess(text).catch(() => [])) : Promise.resolve([]);
+      const knownCore = coreOf(text) !== text ? search.siteMatch(coreOf(text)) : null;
+      const skipGuess = (known && known.score >= 100) || (knownCore && knownCore.score >= 100) || search.findCategory(text);
+      const guessP = verticals.guess && page === 1 && !skipGuess ? Promise.race([webP, new Promise((r) => setTimeout(r, 2500))]).then(() => verticals.guess(text).catch(() => [])) : Promise.resolve([]);
       const [webAll, guessed] = await Promise.all([webP, guessP]);
       const PER_PAGE = 15;
       const knownHosts = new Set(guessed.map((g) => g.host));
@@ -69,14 +90,26 @@ function createSearchPageData({ verticals, sources = () => ({}), strict = () => 
     const wiki = { ...wikiAll, items: wikiAll.items.filter((w) => namedLike(w.title, text)).slice(0, 2) };
     const site = search.siteMatch(text);
     const isSite = Boolean(site && site.score >= 64);
-    const items = page === 1 ? search.suggest(text, sources(), { limit: 30 }).filter((i) => i.url && i.type !== 'search' && i.type !== 'url') : [];
+    let items = page === 1 ? search.suggest(text, sources(), { limit: 30 }).filter((i) => i.url && i.type !== 'search' && i.type !== 'url') : [];
+    // «скачать майнкрафт», «гта 5 скачать», «смотреть аниме»: служебные слова убираются,
+    // и по оставшемуся находится сайт или категория из каталога.
+    const core = coreOf(text);
+    if (page === 1 && core && core !== text) {
+      const extra = search.suggest(core, sources(), { limit: 12 }).filter((i) => i.url && i.type !== 'search' && i.type !== 'url' && i.type !== 'related' && i.score >= 64);
+      const have = new Set(items.map((i) => i.url));
+      items = [...extra.filter((i) => !have.has(i.url)), ...items];
+    }
     // Похожие сайты показываются справа, а слева — только то, что действительно подходит к запросу.
     // Совпадение «с опечаткой» без исправления — скорее другой сайт («кейсер» — не Reuters).
     const sites = items.filter((i) => i.type !== 'related' && !(i.type === 'site' && i.score < 64 && !correction));
     const categoryItem = sites.find((i) => i.category);
-    const category = search.findCategory(text) || (categoryItem ? { name: categoryItem.category } : null);
+    const category = search.findCategory(text) || (core && search.findCategory(core)) || (categoryItem ? { name: categoryItem.category } : null);
     // Справка справа — только если статья называется ровно как запрос («Борщ»), а не «Кейсер, Марике».
     const exactTitle = wiki.items[0] && wiki.items[0].title.replace(/\s*\([^)]*\)/g, '').toLowerCase().replace(/ё/g, 'е') === text.trim().toLowerCase().replace(/ё/g, 'е');
+    // «курс доллара», «евро», «100 долларов в рублях», «биткоин» — ответ сразу наверху выдачи.
+    const asked = MONEY.find(([re]) => re.test(text));
+    const wantsMoney = page === 1 && (asked || /курс|валют/i.test(text));
+    const money = wantsMoney ? await safe(() => verticals.finance(text), null) : null;
     const info = exactTitle && !isSite ? await safe(() => verticals.wikiSummary(wiki.items[0].title), {}) : null;
     return {
       ...base,
@@ -84,6 +117,13 @@ function createSearchPageData({ verticals, sources = () => ({}), strict = () => 
       correction,
       suggestion: suggestion && suggestion.toLowerCase() !== query.toLowerCase() ? suggestion : null,
       calc: search.calculate(query),
+      money: money && (money.conversion || asked || /курс|валют/i.test(text))
+        ? {
+            conversion: money.conversion,
+            rates: asked && asked[1] !== 'crypto' ? money.rates.filter((r) => r.code === asked[1]) : asked ? [] : money.rates.slice(0, 3),
+            crypto: asked && asked[1] === 'crypto' ? money.crypto.slice(0, 2) : [],
+          }
+        : null,
       category: category ? category.name : null,
       sites,
       wiki,

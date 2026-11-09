@@ -57,7 +57,7 @@ const SITES = [
   { name: 'Пикабу', host: 'pikabu.ru', aliases: ['пикабу'], tags: ['social'], search: 'https://pikabu.ru/search?q={q}' },
   { name: 'LinkedIn', host: 'linkedin.com', aliases: ['линкедин'], tags: ['social', 'jobs'] },
   // Мессенджеры
-  { name: 'Telegram', host: 'web.telegram.org', aliases: ['телеграм', 'телега', 'тг', 'tg'], tags: ['messengers'] },
+  { name: 'Telegram', host: 'web.telegram.org', aliases: ['телеграм', 'телега', 'тг', 'tg', 'телеграм веб', 'телеграмм веб', 'telegram web', 'веб телеграм'], tags: ['messengers'] },
   { name: 'WhatsApp', host: 'web.whatsapp.com', aliases: ['ватсап', 'вотсап', 'вацап'], tags: ['messengers'] },
   { name: 'Discord', host: 'discord.com/app', aliases: ['дискорд', 'дс'], tags: ['messengers', 'games'] },
   { name: 'VK Мессенджер', host: 'web.vk.me', aliases: ['вк мессенджер'], tags: ['messengers'] },
@@ -255,7 +255,7 @@ const SITES = [
   // Разное
   // Поисковики — как обычные сайты: открыть Google или Яндекс можно, искать через них Horizon не будет.
   { name: 'Google', host: 'google.com', aliases: ['гугл', 'гугол', 'google search', 'гугл поиск'], tags: ['engines'], search: 'https://www.google.com/search?q={q}' },
-  { name: 'Яндекс', host: 'ya.ru', aliases: ['yandex', 'яндекс поиск', 'я.ру', 'ya'], tags: ['engines'], search: 'https://ya.ru/search/?text={q}' },
+  { name: 'Яндекс', host: 'ya.ru', aliases: ['yandex', 'яндекс поиск', 'я.ру', 'ya'], tags: ['engines'] },
   { name: 'Bing', host: 'bing.com', aliases: ['бинг'], tags: ['engines'], search: 'https://www.bing.com/search?q={q}' },
   { name: 'DuckDuckGo', host: 'duckduckgo.com', aliases: ['дакдакго', 'ddg'], tags: ['engines'], search: 'https://duckduckgo.com/?q={q}' },
   { name: 'Поиск Mail.ru', host: 'go.mail.ru', aliases: ['мейл поиск', 'go mail'], tags: ['engines'], search: 'https://go.mail.ru/search?q={q}' },

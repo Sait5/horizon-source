@@ -850,6 +850,22 @@ button {
   text-underline-offset: 3px;
 }
 
+.google-hint {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin: 4px 0 18px;
+  padding: 14px 16px;
+  border-radius: var(--r);
+  background: var(--accent-faint);
+}
+
+.google-hint-text {
+  flex: 1;
+  min-width: 200px;
+}
+
 .elsewhere {
   margin-top: 22px;
 }
